@@ -1,3 +1,20 @@
+PVala
+-----
+
+PVala is a fork of the Vala compiler which adds support for pluggable code
+generators, and specifically, a POSIX C code generator which does not introduce
+any other runtime requirements to generated code except libc (no GLib).
+
+It is planned that GLib support, and any .vapi files which depend on GLib will
+be removed.
+
+Eventually, it should be possible to make PVala self-hosting, in the same way
+that Vala itself is a self-hosting compiler.
+
+
+Vala README
+------------
+
 Vala is a programming language that aims to bring modern programming
 language features to GNOME developers without imposing any additional
 runtime requirements and without using a different ABI compared to

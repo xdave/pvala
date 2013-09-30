@@ -70,6 +70,8 @@ class Vala.Compiler {
 	static string cc_command;
 	[CCode (array_length = false, array_null_terminated = true)]
 	static string[] cc_options;
+	[CCode (array_length = false, array_null_terminated = true)]
+	static string[] profile_plugin_options;
 	static string dump_tree;
 	static bool save_temps;
 	[CCode (array_length = false, array_null_terminated = true)]
@@ -77,6 +79,7 @@ class Vala.Compiler {
 	static bool quiet_mode;
 	static bool verbose_mode;
 	static string profile;
+	static string profile_plugindir;
 	static bool nostdpkg;
 	static bool enable_version_header;
 	static bool disable_version_header;
@@ -88,6 +91,12 @@ class Vala.Compiler {
 	static bool run_output;
 
 	private CodeContext context;
+
+	private Module? profile_module;
+	private CustomProfileFactoryDelegate custom_profile_factory;
+
+	[CCode(has_target=false)]
+	private delegate Vala.CodeGenerator CustomProfileFactoryDelegate(Vala.CodeContext context, string[] profile_plugindir_options);
 
 	const OptionEntry[] options = {
 		{ "vapidir", 0, 0, OptionArg.FILENAME_ARRAY, ref vapi_directories, "Look for package bindings in DIRECTORY", "DIRECTORY..." },
@@ -132,6 +141,8 @@ class Vala.Compiler {
 		{ "dump-tree", 0, 0, OptionArg.FILENAME, ref dump_tree, "Write code tree to FILE", "FILE" },
 		{ "save-temps", 0, 0, OptionArg.NONE, ref save_temps, "Keep temporary files", null },
 		{ "profile", 0, 0, OptionArg.STRING, ref profile, "Use the given profile instead of the default", "PROFILE" },
+		{ "profile-plugindir", 0, 0, OptionArg.STRING, ref profile_plugindir, "Directory used to search for profile plugins", "DIRECTORY" },
+		{ "profile-option", 0, 0, OptionArg.STRING_ARRAY, ref profile_plugin_options, "Pass OPTION to the profile plugin", "OPTION" },
 		{ "quiet", 'q', 0, OptionArg.NONE, ref quiet_mode, "Do not print messages to the console", null },
 		{ "verbose", 'v', 0, OptionArg.NONE, ref verbose_mode, "Print additional messages to the console", null },
 		{ "target-glib", 0, 0, OptionArg.STRING, ref target_glib, "Target version of glib for code generation", "MAJOR.MINOR" },
@@ -212,12 +223,34 @@ class Vala.Compiler {
 		context.thread = thread;
 		context.mem_profiler = mem_profiler;
 		context.save_temps = save_temps;
+
+		if (profile_plugindir == null) {
+			profile_plugindir = Config.PACKAGE_LIBEXECDIR;
+		}
 		if (profile == "gobject-2.0" || profile == "gobject" || profile == null) {
 			// default profile
 			context.profile = Profile.GOBJECT;
 			context.add_define ("GOBJECT");
 		} else {
-			Report.error (null, "Unknown profile %s".printf (profile));
+			if (Module.supported()) {
+				string path = Module.build_path (profile_plugindir, "%s%s".printf(profile, Config.PACKAGE_SUFFIX));
+
+				profile_module = Module.open (path, ModuleFlags.BIND_LOCAL);
+				if (profile_module != null) {
+					void* codegen_factory_func;
+
+					if (profile_module.symbol("vala_codegenerator_factory", out codegen_factory_func)) {
+						custom_profile_factory = (CustomProfileFactoryDelegate) codegen_factory_func;
+						context.profile = Profile.CUSTOM;
+					} else {
+						Report.error (null, "A valid factory function was not found. Can't use module '%s' for profile %s".printf (path, profile));
+					}
+				} else {
+					Report.error (null, "Can't load module '%s'. Unknown profile %s".printf (path, profile));
+				}
+			} else {
+				Report.error (null, "Unknown profile %s".printf (profile));
+			}
 		}
 		nostdpkg |= fast_vapi_filename != null;
 		context.nostdpkg = nostdpkg;
@@ -248,14 +281,16 @@ class Vala.Compiler {
 			Report.error (null, "This version of valac only supports GLib 2");
 		}
 
-		for (int i = 16; i <= glib_minor; i += 2) {
-			context.add_define ("GLIB_2_%d".printf (i));
-		}
+		if (context.profile != Profile.CUSTOM) {
+			for (int i = 16; i <= glib_minor; i += 2) {
+				context.add_define ("GLIB_2_%d".printf (i));
+			}
 
-		if (!nostdpkg) {
-			/* default packages */
-			context.add_external_package ("glib-2.0");
-			context.add_external_package ("gobject-2.0");
+			if (!nostdpkg) {
+				/* default packages */
+				context.add_external_package ("glib-2.0");
+				context.add_external_package ("gobject-2.0");
+			}
 		}
 
 		if (packages != null) {
@@ -280,7 +315,16 @@ class Vala.Compiler {
 			return quit ();
 		}
 
-		context.codegen = new GDBusServerModule ();
+		if (context.profile == Profile.CUSTOM) {
+			var codegen = custom_profile_factory(context, profile_plugin_options) as Vala.CodeGenerator;
+			if (codegen != null) {
+				context.codegen = codegen;
+			} else {
+				Report.error (null, "Invalid code generator for profile %s".printf (profile));
+			}
+		} else {
+			context.codegen = new GDBusServerModule ();
+		}
 
 		bool has_c_files = false;
 

@@ -220,7 +220,8 @@ public class Vala.MethodCall : Expression {
 
 		CreationMethod base_cm = null;
 
-		if (mtype is ObjectType || call.symbol_reference == context.analyzer.object_type) {
+		//if (mtype is ObjectType || call.symbol_reference == context.analyzer.object_type) {
+		if (mtype is ObjectType || (context.analyzer.object_type != null && call.symbol_reference == context.analyzer.object_type)) {
 			// constructor chain-up
 			var cm = context.analyzer.find_current_method () as CreationMethod;
 			if (cm == null) {

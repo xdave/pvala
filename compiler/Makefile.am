@@ -7,7 +7,9 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/vala \
 	-I$(top_srcdir)/codegen \
 	$(GLIB_CFLAGS) \
+	$(GMODULE_CFLAGS) \
 	-DPACKAGE_DATADIR=\"$(pkgdatadir)\" \
+	-DPACKAGE_LIBEXECDIR=\"$(pkglibexecdir)\" \
 	$(NULL)
 
 BUILT_SOURCES = valac.vala.stamp
@@ -26,12 +28,13 @@ valac_SOURCES = \
 	$(NULL)
 
 valac.vala.stamp: $(valac_VALASOURCES)
-	$(VALA_V)$(VALAC) $(COVERAGE_VALAFLAGS) $(VALAFLAGS) -C --vapidir $(srcdir)/../vapi --pkg gobject-2.0 --vapidir $(srcdir)/../gee --pkg gee --vapidir $(srcdir)/../ccode --pkg ccode --vapidir $(srcdir)/../vala --pkg vala --vapidir $(srcdir)/../codegen --pkg codegen --pkg config $^
+	$(VALA_V)$(VALAC) $(COVERAGE_VALAFLAGS) $(VALAFLAGS) -C --vapidir $(srcdir)/../vapi --pkg gobject-2.0 --pkg gmodule-2.0 --vapidir $(srcdir)/../gee --pkg gee --vapidir $(srcdir)/../ccode --pkg ccode --vapidir $(srcdir)/../vala --pkg vala --vapidir $(srcdir)/../codegen --pkg codegen --pkg config $^
 	@touch $@
 
 valac_LDADD = \
 	$(COVERAGE_LIBS) \
 	$(GLIB_LIBS) \
+	$(GMODULE_LIBS) \
 	../codegen/libvala@PACKAGE_SUFFIX@.la \
 	$(NULL)
 

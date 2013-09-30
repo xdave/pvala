@@ -412,9 +412,11 @@ public class Vala.CodeContext {
 			source_file.relative_filename = filename;
 
 			// import the GLib namespace by default (namespace of backend-specific standard library)
-			var ns_ref = new UsingDirective (new UnresolvedSymbol (null, "GLib", null));
-			source_file.add_using_directive (ns_ref);
-			root.add_using_directive (ns_ref);
+			if (this.profile != Profile.CUSTOM) {
+				var ns_ref = new UsingDirective (new UnresolvedSymbol (null, "GLib", null));
+				source_file.add_using_directive (ns_ref);
+				root.add_using_directive (ns_ref);
+			}
 
 			add_source_file (source_file);
 		} else if (filename.has_suffix (".vapi") || filename.has_suffix (".gir")) {

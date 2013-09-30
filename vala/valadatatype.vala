@@ -263,12 +263,12 @@ public abstract class Vala.DataType : CodeNode {
 		}
 
 		if (target_type.data_type != null) {
-			if (target_type.data_type.is_subtype_of (CodeContext.get ().analyzer.gvalue_type.data_type)) {
+			if (CodeContext.get ().analyzer.gvalue_type != null && target_type.data_type.is_subtype_of (CodeContext.get ().analyzer.gvalue_type.data_type)) {
 				// allow implicit conversion to GValue
 				return true;
 			}
 
-			if (target_type.data_type.is_subtype_of (CodeContext.get ().analyzer.gvariant_type.data_type)) {
+			if (CodeContext.get ().analyzer.gvariant_type != null && target_type.data_type.is_subtype_of (CodeContext.get ().analyzer.gvariant_type.data_type)) {
 				// allow implicit conversion to GVariant
 				return true;
 			}

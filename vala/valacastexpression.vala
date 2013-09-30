@@ -163,7 +163,7 @@ public class Vala.CastExpression : Expression {
 	}
 
 	bool is_gvariant (CodeContext context, DataType type) {
-		return type.data_type != null && type.data_type.is_subtype_of (context.analyzer.gvariant_type.data_type);
+		return type.data_type != null && context.analyzer.gvariant_type != null && type.data_type.is_subtype_of (context.analyzer.gvariant_type.data_type);
 	}
 
 	public override void emit (CodeGenerator codegen) {

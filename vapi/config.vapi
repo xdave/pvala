@@ -26,4 +26,5 @@ namespace Config {
 	public const string BUILD_VERSION;
 	public const string PACKAGE_DATADIR;
 	public const string PACKAGE_SUFFIX;
+	public const string PACKAGE_LIBEXECDIR;
 }

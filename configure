@@ -49,6 +49,16 @@ for param in ${_ARGS_}; do
 			_MAKE_ARGS_+="DATAROOTDIR=${arg} "
 		fi
 		;;
+	sysconfdir)
+		if [ -n "${arg}" ]; then
+			_MAKE_ARGS_+="SYSCONFDIR=${arg} "
+		fi
+		;;
+	infodir)
+		if [ -n "${arg}" ]; then
+			_MAKE_ARGS_+="INFODIR=${arg} "
+		fi
+		;;
 	*)
 		echo "Error: Unrecognized option --${opt}"
 		exit 1;

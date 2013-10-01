@@ -1,5 +1,7 @@
 include common.mk
 
+DESTDIR		:=
+
 PVALAC		:=	$(NAME)c
 LIBPVALA	:=	lib$(NAME)$(PACKAGE_SUFFIX).so
 
@@ -29,6 +31,24 @@ $(PVALAC): $(LIBPVALA) $(PVALAC_OBJ)
 	@echo "[CC]	$@"
 	@$(CC) -o $@ -c $< $(CFLAGS)
 
+install: all
+	@mkdir -pv $(DESTDIR)$(BINDIR)
+	@mkdir -pv $(DESTDIR)$(LIBDIR)
+	@mkdir -pv $(DESTDIR)$(INCLUDEDIR)
+	@mkdir -pv $(DESTDIR)$(DATAROOTDIR)
+	@install -v -m0755 $(PVALAC) $(DESTDIR)$(BINDIR)
+	@install -v -m0755 $(LIBPVALA) $(DESTDIR)$(LIBDIR)
+	@install -v -m0644 lib$(NAME)$(PACKAGE_SUFFIX).h $(DESTDIR)$(INCLUDEDIR)
+	@cp -av vapi $(DESTDIR)$(DATAROOTDIR)
+	@install -v -m0644 lib$(NAME)$(PACKAGE_SUFFIX).vapi $(DESTDIR)$(VAPIDIR)
+	@rm $(DESTDIR)$(VAPIDIR)/config.vapi
+
+uninstall:
+	@rm -fv $(DESTDIR)$(BINDIR)/$(PVALAC)
+	@rm -fv $(DESTDIR)$(LIBDIR)/$(LIBPVALA)
+	@rm -fv $(DESTDIR)$(INCLUDEDIR)/lib$(NAME)$(PACKAGE_SUFFIX).h
+	@rm -rfv $(DESTDIR)$(VAPIDIR)
+
 clean:
 	@echo "[Clean]"
 	@rm -f $(PVALAC) $(LIBPVALA) $(PVALAC_OBJ) $(LIBPVALA_OBJ)
@@ -38,5 +58,5 @@ distclean: clean
 	@rm -f $(GENERATED) $(PVALAC_C_SRC) $(LIBPVALA_C_SRC) \
 		lib$(NAME)$(PACKAGE_SUFFIX).h lib$(NAME)$(PACKAGE_SUFFIX).vapi
 
-.PHONY: all clean distclean
+.PHONY: all install uninstall clean distclean
 .PRECIOUS:

@@ -1,0 +1,59 @@
+#!/bin/bash
+
+_ARGS_="$@"
+_MAKE_ARGS_=""
+
+get_opt() {
+	echo -n "${1}" | sed -e "s|--\([^=]*\)\(.*\)|\1|g"
+}
+
+get_arg() {
+	echo -n "${1}" | sed -e "s|--\(.*\)=\(.*\)|\2|g"
+}
+
+for param in ${_ARGS_}; do
+	opt=$(get_opt ${param})
+	arg=$(get_arg ${param})
+	case ${opt} in
+	help)
+		echo "Here's some help!"
+		exit 0;
+		;;
+	exec-prefix|prefix)
+		if [ -n "${arg}" ]; then
+			_MAKE_ARGS_+="PREFIX=${arg} "
+		fi
+		;;
+	bindir)
+		if [ -n "${arg}" ]; then
+			_MAKE_ARGS_+="BINDIR=${arg} "
+		fi
+		;;
+	libexecdir)
+		if [ -n "${arg}" ]; then
+			_MAKE_ARGS_+="LIBEXECDIR=${arg} "
+		fi
+		;;
+	libdir)
+		if [ -n "${arg}" ]; then
+			_MAKE_ARGS_+="LIBDIR=${arg} "
+		fi
+		;;
+	includedir)
+		if [ -n "${arg}" ]; then
+			_MAKE_ARGS_+="INCLUDEDIR=${arg} "
+		fi
+		;;
+	datadir|datarootdir)
+		if [ -n "${arg}" ]; then
+			_MAKE_ARGS_+="DATAROOTDIR=${arg} "
+		fi
+		;;
+	*)
+		echo "Error: Unrecognized option --${opt}"
+		exit 1;
+		;;
+	esac
+done
+
+make ${_MAKE_ARGS_} -f configure.mk

@@ -569,7 +569,7 @@ class Vala.Compiler {
 		// initialize locale
 		Intl.setlocale (LocaleCategory.ALL, "");
 
-		if (Path.get_basename (args[0]) == "vala" || Path.get_basename (args[0]) == "vala" + Config.PACKAGE_SUFFIX) {
+		if (Path.get_basename (args[0]) == "pvala" || Path.get_basename (args[0]) == "pvala" + Config.PACKAGE_SUFFIX) {
 			return run_source (args);
 		}
 

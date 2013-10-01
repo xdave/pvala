@@ -482,7 +482,7 @@ public class Vala.CodeContext {
 	}
 
 	public string? get_vapi_path (string pkg) {
-		var path = get_file_path (pkg + ".vapi", "vala" + Config.PACKAGE_SUFFIX + "/vapi", "vala/vapi", vapi_directories);
+		var path = get_file_path (pkg + ".vapi", "pvala" + Config.PACKAGE_SUFFIX + "/vapi", "pvala/vapi", vapi_directories);
 
 		if (path == null) {
 			/* last chance: try the package compiled-in vapi dir */

@@ -8,7 +8,9 @@ pvalac
 *.lo
 *.la
 *.c
-*.h
+libpvala-*.h
+config.h
+version.h
 *.stamp
 *.gir
 .deps

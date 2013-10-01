@@ -48,6 +48,7 @@ install: all
 	@install -v -m0755 $(LIBPVALA) $(DESTDIR)$(LIBDIR)
 	@install -v -m0755 $(LIBPOSIX) $(DESTDIR)$(LIBEXECDIR)
 	@install -v -m0644 lib$(NAME)$(PACKAGE_SUFFIX).h $(DESTDIR)$(INCLUDEDIR)
+	@install -v -m0644 posixrt.h $(DESTDIR)$(INCLUDEDIR)
 	@cp -av vapi $(DESTDIR)$(DATAROOTDIR)
 	@install -v -m0644 lib$(NAME)$(PACKAGE_SUFFIX).vapi $(DESTDIR)$(VAPIDIR)
 	@rm $(DESTDIR)$(VAPIDIR)/config.vapi
@@ -57,6 +58,7 @@ uninstall:
 	@rm -fv $(DESTDIR)$(LIBDIR)/$(LIBPVALA)
 	@rm -fv $(DESTDIR)$(LIBEXECDIR)/$(LIBPOSIX)
 	@rm -fv $(DESTDIR)$(INCLUDEDIR)/lib$(NAME)$(PACKAGE_SUFFIX).h
+	@rm -fv $(DESTDIR)$(INCLUDEDIR)/posixrt.h
 	@rm -rfv $(DESTDIR)$(VAPIDIR)
 
 clean:

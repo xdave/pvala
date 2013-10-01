@@ -66,4 +66,6 @@ for param in ${_ARGS_}; do
 	esac
 done
 
+echo "./configure ${_ARGS_}" > reconf
+chmod +x reconf
 make ${_MAKE_ARGS_} -f configure.mk

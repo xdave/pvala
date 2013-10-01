@@ -26,7 +26,7 @@
 
 public class  Vala.CodeGen.PosixSignalModule : Vala.CodeGen.PosixClassModule {
 	string get_marshaller_function (List<Parameter> params, DataType return_type, string? prefix = null) {
-		var signature = get_marshaller_signature (params, return_type);
+		//var signature = get_marshaller_signature (params, return_type);
 		string ret;
 
 		if (prefix == null) {
@@ -172,7 +172,7 @@ public class  Vala.CodeGen.PosixSignalModule : Vala.CodeGen.PosixClassModule {
 
 	void generate_marshaller (List<Parameter> params, DataType return_type) {
 		string signature;
-		int n_params, i;
+		int n_params/*, i*/;
 		
 		/* check whether a signal with the same signature already exists for this source file (or predefined) */
 		signature = get_marshaller_signature (params, return_type);

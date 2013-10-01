@@ -3328,6 +3328,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 		}
 	}
 
+#if 0
 	private string generate_collection_free_wrapper (DataType collection_type, CCodeIdentifier element_destroy_func_expression) {
 		string destroy_func = "_%s_%s".printf (get_ccode_free_function (collection_type.data_type), element_destroy_func_expression.name);
 
@@ -3397,7 +3398,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 
 		return destroy_func;
 	}
-
+#endif
 	public virtual string? append_struct_array_free (Struct st) {
 		return null;
 	}

@@ -698,7 +698,7 @@ public abstract class Vala.CodeGen.PosixMethodModule : Vala.CodeGen.PosixStructM
 			var level = new CCodeIdentifier (prefix + "_level");
 			ccode.open_if (new CCodeUnaryExpression (CCodeUnaryOperator.LOGICAL_NEGATION, new CCodeUnaryExpression (CCodeUnaryOperator.PREFIX_DECREMENT, level)));
 
-			var timer = new CCodeIdentifier (prefix + "_timer");
+			//var timer = new CCodeIdentifier (prefix + "_timer");
 
 			//var stop_call = new CCodeFunctionCall (new CCodeIdentifier ("g_timer_stop"));
 			//stop_call.add_argument (timer);

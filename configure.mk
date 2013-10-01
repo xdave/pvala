@@ -21,7 +21,7 @@ PKGS		:= glib-2.0 gobject-2.0 gmodule-2.0
 PC		:= lib$(NAME)$(PACKAGE_SUFFIX).pc
 
 GENERATED	:= $(PC) version.h config.h common.mk Makefile
-SUBDIRS		:= gee ccode codegen pvala compiler
+SUBDIRS		:= gee ccode codegen pvala compiler vala-codegen-posix
 
 CLEANUP		:= $(shell rm -f $(GENERATED))
 
@@ -29,9 +29,11 @@ VALAC		:=	valac
 
 PVALAC		:=	$(NAME)c
 LIBPVALA	:=	lib$(NAME)$(PACKAGE_SUFFIX).so
+LIBPOSIX	:=	libposix$(PACKAGE_SUFFIX).so
 PVALAC_SRC	+=	$(wildcard compiler/*.vala)
 LIBPVALA_SRC	+=	$(wildcard gee/*.vala) $(wildcard ccode/*.vala)	\
 			$(wildcard codegen/*.vala) $(wildcard pvala/*.vala)
+LIBPOSIX_SRC	+=	$(wildcard vala-codegen-posix/*.vala)
 VPKG		+=	$(patsubst %,--pkg=%,$(PKGS))
 VFLAGS		+=	--nostdpkg $(VPKG)
 VFLAGS		+=	--vapidir=vapi vapi/config.vapi
@@ -113,6 +115,8 @@ config.h: config.h.in
 		-e "s|@PACKAGE_BUGREPORT@|$(PACKAGE_BUGREPORT)|g"	\
 		-e "s|@PACKAGE_SUFFIX@|$(PACKAGE_SUFFIX)|g"		\
 		-e "s|@PACKAGE_URL@|$(PACKAGE_URL)|g"			\
+		-e "s|@LIBEXECDIR@|$(LIBEXECDIR)|g"			\
+		-e "s|@DATAROOTDIR@|$(DATAROOTDIR)|g"			\
 		$< > $@
 
 gen_source:
@@ -122,6 +126,9 @@ gen_source:
 		--vapi=lib$(NAME)$(PACKAGE_SUFFIX).vapi
 	@echo "Generating source for target: $(PVALAC) ..."
 	@valac $(VFLAGS) -C $(PVALAC_SRC) --vapidir=. 				\
+		--pkg=lib$(NAME)$(PACKAGE_SUFFIX)
+	@echo "Generating source for target: $(LIBPOSIX) ..."
+	@valac $(VFLAGS) -C $(LIBPOSIX_SRC) --vapidir=. \
 		--pkg=lib$(NAME)$(PACKAGE_SUFFIX)
 
 .PHONY: $(PROGS) $(PKGS) check_progs check_pkgs gen_source

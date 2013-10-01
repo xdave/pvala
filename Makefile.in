@@ -4,12 +4,15 @@ DESTDIR		:=
 
 PVALAC		:=	$(NAME)c
 LIBPVALA	:=	lib$(NAME)$(PACKAGE_SUFFIX).so
+LIBPOSIX	:=	libposix$(PACKAGE_SUFFIX).so
 
 PVALAC_C_SRC	+=	$(wildcard compiler/*.c)
 LIBPVALA_C_SRC	+=	$(wildcard gee/*.c) $(wildcard ccode/*.c)	\
 			$(wildcard codegen/*.c) $(wildcard pvala/*.c)
+LIBPOSIX_C_SRC	+=	$(wildcard vala-codegen-posix/*.c)
 PVALAC_OBJ	+=	$(patsubst %.c,%.o,$(PVALAC_C_SRC))
 LIBPVALA_OBJ	+=	$(patsubst %.c,%.o,$(LIBPVALA_C_SRC))
+LIBPOSIX_OBJ	+=	$(patsubst %.c,%.o,$(LIBPOSIX_C_SRC))
 
 PKGC		+=	$(shell pkg-config --cflags $(PKGS))
 PKGL		+=	$(shell pkg-config --libs $(PKGS))
@@ -17,7 +20,7 @@ PKGL		+=	$(shell pkg-config --libs $(PKGS))
 CFLAGS		+=	$(PKGC) -w -O2 -pipe -fPIC -I.
 LDFLAGS		+=	$(PKGL)
 
-all: $(PVALAC)
+all: $(PVALAC) $(LIBPOSIX)
 
 $(LIBPVALA): $(LIBPVALA_OBJ) 
 	@echo "[CCLD]	$@"
@@ -27,6 +30,10 @@ $(PVALAC): $(LIBPVALA) $(PVALAC_OBJ)
 	@echo "[CCLD]	$@"
 	@$(CC) -o $@ $(PVALAC_OBJ) $(LDFLAGS) -L. -l$(NAME)$(PACKAGE_SUFFIX)
 
+$(LIBPOSIX): $(LIBPVALA) $(LIBPOSIX_OBJ)
+	@echo "[CCLD]	$@"
+	@$(CC) -shared -o $@ $(LIBPOSIX_OBJ) $(LDFLAGS) -L. -l$(NAME)$(PACKAGE_SUFFIX)
+
 %.o: %.c
 	@echo "[CC]	$@"
 	@$(CC) -o $@ -c $< $(CFLAGS)
@@ -34,10 +41,12 @@ $(PVALAC): $(LIBPVALA) $(PVALAC_OBJ)
 install: all
 	@mkdir -pv $(DESTDIR)$(BINDIR)
 	@mkdir -pv $(DESTDIR)$(LIBDIR)
+	@mkdir -pv $(DESTDIR)$(LIBEXECDIR)
 	@mkdir -pv $(DESTDIR)$(INCLUDEDIR)
 	@mkdir -pv $(DESTDIR)$(DATAROOTDIR)
 	@install -v -m0755 $(PVALAC) $(DESTDIR)$(BINDIR)
 	@install -v -m0755 $(LIBPVALA) $(DESTDIR)$(LIBDIR)
+	@install -v -m0755 $(LIBPOSIX) $(DESTDIR)$(LIBEXECDIR)
 	@install -v -m0644 lib$(NAME)$(PACKAGE_SUFFIX).h $(DESTDIR)$(INCLUDEDIR)
 	@cp -av vapi $(DESTDIR)$(DATAROOTDIR)
 	@install -v -m0644 lib$(NAME)$(PACKAGE_SUFFIX).vapi $(DESTDIR)$(VAPIDIR)
@@ -46,16 +55,19 @@ install: all
 uninstall:
 	@rm -fv $(DESTDIR)$(BINDIR)/$(PVALAC)
 	@rm -fv $(DESTDIR)$(LIBDIR)/$(LIBPVALA)
+	@rm -fv $(DESTDIR)$(LIBEXECDIR)/$(LIBPOSIX)
 	@rm -fv $(DESTDIR)$(INCLUDEDIR)/lib$(NAME)$(PACKAGE_SUFFIX).h
 	@rm -rfv $(DESTDIR)$(VAPIDIR)
 
 clean:
 	@echo "[Clean]"
-	@rm -f $(PVALAC) $(LIBPVALA) $(PVALAC_OBJ) $(LIBPVALA_OBJ)
+	@rm -f $(PVALAC) $(LIBPVALA) $(LIBPOSIX) \
+		$(PVALAC_OBJ) $(LIBPVALA_OBJ) $(LIBPOSIX_OBJ)
 
 distclean: clean
 	@echo "[Distclean]"
-	@rm -f $(GENERATED) $(PVALAC_C_SRC) $(LIBPVALA_C_SRC) \
+	@rm -f $(GENERATED) \
+		$(PVALAC_C_SRC) $(LIBPVALA_C_SRC) $(LIBPOSIX_C_SRC) \
 		lib$(NAME)$(PACKAGE_SUFFIX).h lib$(NAME)$(PACKAGE_SUFFIX).vapi
 
 .PHONY: all install uninstall clean distclean

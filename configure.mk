@@ -25,7 +25,18 @@ SUBDIRS		:= gee ccode codegen pvala compiler
 
 CLEANUP		:= $(shell rm -f $(GENERATED))
 
-all: check_progs check_pkgs $(GENERATED)
+VALAC		:=	valac
+
+PVALAC		:=	$(NAME)c
+LIBPVALA	:=	lib$(NAME)$(PACKAGE_SUFFIX).so
+PVALAC_SRC	+=	$(wildcard compiler/*.vala)
+LIBPVALA_SRC	+=	$(wildcard gee/*.vala) $(wildcard ccode/*.vala)	\
+			$(wildcard codegen/*.vala) $(wildcard pvala/*.vala)
+VPKG		+=	$(patsubst %,--pkg=%,$(PKGS))
+VFLAGS		+=	--nostdpkg $(VPKG)
+VFLAGS		+=	--vapidir=vapi vapi/config.vapi
+
+all: check_progs check_pkgs $(GENERATED) gen_source
 	@echo "Done. Now type 'make'."
 
 check_progs:
@@ -63,7 +74,7 @@ $(PC): lib$(NAME).pc.in
 		$< > $@
 
 common.mk: common.mk.in
-	@echo "Generating $@"
+	@echo "Generating $@ ..."
 	@sed							\
 		-e "s|@NAME@|${NAME}|g"				\
 		-e "s|@MAJVER@|${MAJVER}|g"			\
@@ -87,7 +98,7 @@ common.mk: common.mk.in
 		$< > $@
 
 Makefile: Makefile.in
-	@echo "Generating $@"
+	@echo "Generating $@ ..."
 	@cat $< > $@
 
 version.h: version.h.in
@@ -104,4 +115,13 @@ config.h: config.h.in
 		-e "s|@PACKAGE_URL@|$(PACKAGE_URL)|g"			\
 		$< > $@
 
-.PHONY: $(PROGS) $(PKGS) check_progs check_pkgs
+gen_source:
+	@echo "Generating source for target: $(LIBPVALA) ..."
+	@valac $(VFLAGS) -C $(LIBPVALA_SRC) -H lib$(NAME)$(PACKAGE_SUFFIX).h	\
+		--use-header=lib$(NAME)$(PACKAGE_SUFFIX).h			\
+		--vapi=lib$(NAME)$(PACKAGE_SUFFIX).vapi
+	@echo "Generating source for target: $(PVALAC) ..."
+	@valac $(VFLAGS) -C $(PVALAC_SRC) --vapidir=. 				\
+		--pkg=lib$(NAME)$(PACKAGE_SUFFIX)
+
+.PHONY: $(PROGS) $(PKGS) check_progs check_pkgs gen_source

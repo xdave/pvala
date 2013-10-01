@@ -2,13 +2,12 @@ include common.mk
 
 PVALAC		:=	$(NAME)c
 LIBPVALA	:=	lib$(NAME)$(PACKAGE_SUFFIX).so
-PVALAC_SRC	+=	$(wildcard compiler/*.vala)
-LIBPVALA_SRC	+=	$(wildcard gee/*.vala) $(wildcard ccode/*.vala)	\
-			$(wildcard codegen/*.vala) $(wildcard pvala/*.vala)
-PVALAC_OBJ	+=	$(patsubst %.vala,%.o,$(PVALAC_SRC))
-LIBPVALA_OBJ	+=	$(patsubst %.vala,%.o,$(LIBPVALA_SRC))
-PVALAC_C_SRC	+=	$(patsubst %.vala,%.c,$(PVALAC_SRC))
-LIBPVALA_C_SRC	+=	$(patsubst %.vala,%.c,$(LIBPVALA_SRC))
+
+PVALAC_C_SRC	+=	$(wildcard compiler/*.c)
+LIBPVALA_C_SRC	+=	$(wildcard gee/*.c) $(wildcard ccode/*.c)	\
+			$(wildcard codegen/*.c) $(wildcard pvala/*.c)
+PVALAC_OBJ	+=	$(patsubst %.c,%.o,$(PVALAC_C_SRC))
+LIBPVALA_OBJ	+=	$(patsubst %.c,%.o,$(LIBPVALA_C_SRC))
 
 PKGC		+=	$(shell pkg-config --cflags $(PKGS))
 PKGL		+=	$(shell pkg-config --libs $(PKGS))
@@ -16,30 +15,15 @@ PKGL		+=	$(shell pkg-config --libs $(PKGS))
 CFLAGS		+=	$(PKGC) -w -O2 -pipe -fPIC -I.
 LDFLAGS		+=	$(PKGL)
 
-VPKG		+=	$(patsubst %,--pkg=%,$(PKGS))
-VFLAGS		+=	--nostdpkg $(VPKG)
-VFLAGS		+=	--vapidir=vapi vapi/config.vapi
-
 all: $(PVALAC)
 
 $(LIBPVALA): $(LIBPVALA_OBJ) 
 	@echo "[CCLD]	$@"
 	@$(CC) -shared -o $@ $(LIBPVALA_OBJ) $(LDFLAGS)
 
-
 $(PVALAC): $(LIBPVALA) $(PVALAC_OBJ)
 	@echo "[CCLD]	$@"
 	@$(CC) -o $@ $(PVALAC_OBJ) $(LDFLAGS) -L. -l$(NAME)$(PACKAGE_SUFFIX)
-
-$(LIBPVALA_C_SRC): $(LIBPVALA_SRC)
-	@echo "[VALAC]	Generating source for target: $(LIBPVALA)"
-	@valac $(VFLAGS) -C $^ -H lib$(NAME)$(PACKAGE_SUFFIX).h		\
-		--use-header=lib$(NAME)$(PACKAGE_SUFFIX).h		\
-		--vapi=lib$(NAME)$(PACKAGE_SUFFIX).vapi
-
-$(PVALAC_C_SRC): $(PVALAC_SRC)
-	@echo "[VALAC]	Generating source for target: $(PVALAC)"
-	@valac $(VFLAGS) -C $^ --vapidir=. --pkg=lib$(NAME)$(PACKAGE_SUFFIX)
 
 %.o: %.c
 	@echo "[CC]	$@"
@@ -47,13 +31,12 @@ $(PVALAC_C_SRC): $(PVALAC_SRC)
 
 clean:
 	@echo "[Clean]"
-	@rm -f $(PVALAC) $(LIBPVALA) $(PVALAC_C_SRC) $(LIBPVALA_C_SRC) \
-		$(PVALAC_OBJ) $(LIBPVALA_OBJ) \
-		lib$(NAME)$(PACKAGE_SUFFIX).h lib$(NAME)$(PACKAGE_SUFFIX).vapi
+	@rm -f $(PVALAC) $(LIBPVALA) $(PVALAC_OBJ) $(LIBPVALA_OBJ)
 
 distclean: clean
 	@echo "[Distclean]"
-	@rm -f $(GENERATED)
+	@rm -f $(GENERATED) $(PVALAC_C_SRC) $(LIBPVALA_C_SRC) \
+		lib$(NAME)$(PACKAGE_SUFFIX).h lib$(NAME)$(PACKAGE_SUFFIX).vapi
 
 .PHONY: all clean distclean
 .PRECIOUS:

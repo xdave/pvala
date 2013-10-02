@@ -62,6 +62,22 @@ $(PC): lib$(NAME).pc.in
 		-e "s|@PACKAGE_SUFFIX@|$(PACKAGE_SUFFIX)|g"		\
 		$< > $@
 
+version.h: version.h.in
+	@echo "Generating $@ ..."
+	@sed -e "s|@VERSION@|${VERSION}|g" $< > $@
+
+config.h: config.h.in
+	@echo "Generating $@ ..."
+	@sed								\
+		-e "s|@NAME@|$(NAME)|g"					\
+		-e "s|@VERSION@|$(VERSION)|g"				\
+		-e "s|@PACKAGE_BUGREPORT@|$(PACKAGE_BUGREPORT)|g"	\
+		-e "s|@PACKAGE_SUFFIX@|$(PACKAGE_SUFFIX)|g"		\
+		-e "s|@PACKAGE_URL@|$(PACKAGE_URL)|g"			\
+		-e "s|@LIBEXECDIR@|$(LIBEXECDIR)|g"			\
+		-e "s|@DATAROOTDIR@|$(DATAROOTDIR)|g"			\
+		$< > $@
+
 common.mk: common.mk.in
 	@echo "Generating $@ ..."
 	@sed							\
@@ -90,20 +106,5 @@ Makefile: Makefile.in
 	@echo "Generating $@ ..."
 	@cat $< > $@
 
-version.h: version.h.in
-	@echo "Generating $@ ..."
-	@sed -e "s|@VERSION@|${VERSION}|g" $< > $@
-
-config.h: config.h.in
-	@echo "Generating $@ ..."
-	@sed								\
-		-e "s|@NAME@|$(NAME)|g"					\
-		-e "s|@VERSION@|$(VERSION)|g"				\
-		-e "s|@PACKAGE_BUGREPORT@|$(PACKAGE_BUGREPORT)|g"	\
-		-e "s|@PACKAGE_SUFFIX@|$(PACKAGE_SUFFIX)|g"		\
-		-e "s|@PACKAGE_URL@|$(PACKAGE_URL)|g"			\
-		-e "s|@LIBEXECDIR@|$(LIBEXECDIR)|g"			\
-		-e "s|@DATAROOTDIR@|$(DATAROOTDIR)|g"			\
-		$< > $@
 
 .PHONY: $(PROGS) $(PKGS) check_progs check_pkgs

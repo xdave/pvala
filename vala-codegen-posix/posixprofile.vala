@@ -28,12 +28,13 @@ using GLib;
 public class Vala.CodeGen.Posix {
 	
 	[CCode(cname="vala_codegenerator_factory")]
-	public static Vala.CodeGenerator factory (Vala.CodeContext context, string[] options) {
-		context.add_define ("POSIX");
-		context.add_external_package ("posix");
-		context.add_external_package ("posix-types");
+	public static Vala.CodeGenerator factory(Vala.CodeContext context,
+						 string[] options) {
+		context.add_define("POSIX");
+		context.add_external_package("posix");
+		context.add_external_package("posix-types");
 
-		var codegen = new Vala.CodeGen.PosixSignalModule ();
+		var codegen = new Vala.CodeGen.PosixSignalModule();
 		codegen.trace_method_call = false;
 		foreach (string option in options) {
 			if (option == "trace-method-call") {

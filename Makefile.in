@@ -100,13 +100,13 @@ uninstall:
 clean:
 	@echo "[Clean]"
 	@rm -f $(PVALAC) $(LIBPVALA) $(LIBPOSIX) \
+		$(PVALAC_C_SRC) $(LIBPVALA_C_SRC) $(LIBPOSIX_C_SRC) \
 		$(PVALAC_OBJ) $(LIBPVALA_OBJ) $(LIBPOSIX_OBJ) \
 		pvalac.stamp libpvala.stamp libposix.stamp
 
 distclean: clean
 	@echo "[Distclean]"
 	@rm -f reconf $(GENERATED) \
-		$(PVALAC_C_SRC) $(LIBPVALA_C_SRC) $(LIBPOSIX_C_SRC) \
 		lib$(NAME)$(PACKAGE_SUFFIX).h lib$(NAME)$(PACKAGE_SUFFIX).vapi
 
 .PHONY: all install uninstall clean distclean

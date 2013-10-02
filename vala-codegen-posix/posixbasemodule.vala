@@ -28,26 +28,18 @@
  */
 public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 	public class EmitContext : Vala.CCodeBaseModule.EmitContext {
-		public EmitContext (Vala.Symbol? symbol = null)
-		{
+		public EmitContext(Vala.Symbol? symbol = null) {
 			base(symbol);
 		}
 	}
 
 	public CodeContext context { get; set; }
-
 	public Symbol root_symbol;
-
 	public EmitContext emit_context = new EmitContext ();
-
 	List<EmitContext> emit_context_stack = new ArrayList<EmitContext> ();
-
 	public CCodeLineDirective? current_line = null;
-
 	List<CCodeLineDirective> line_directive_stack = new ArrayList<CCodeLineDirective> ();
-
 	public Symbol current_symbol { get { return emit_context.current_symbol; } }
-
 	public bool trace_method_call { get; set; }
 
 	public TryStatement current_try {
@@ -133,7 +125,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 				}
 			}
 
-			if (is_in_constructor () || is_in_destructor ()) {
+			if (is_in_constructor() || is_in_destructor()) {
 				return void_type;
 			}
 

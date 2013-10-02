@@ -21,7 +21,6 @@ PKGS		:= glib-2.0 gobject-2.0 gmodule-2.0
 PC		:= lib$(NAME)$(PACKAGE_SUFFIX).pc
 
 GENERATED	:= $(PC) version.h config.h common.mk Makefile
-SUBDIRS		:= gee ccode codegen pvala compiler vala-codegen-posix
 
 CLEANUP		:= $(shell rm -f $(GENERATED))
 
@@ -99,7 +98,6 @@ common.mk: common.mk.in
 		-e "s|@PKGS@|${PKGS}|g"				\
 		-e "s|@PC@|${PC}|g"				\
 		-e "s|@GENERATED@|${GENERATED}|g"		\
-		-e "s|@SUBDIRS@|$(SUBDIRS)|g"			\
 		$< > $@
 
 Makefile: Makefile.in

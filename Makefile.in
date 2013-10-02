@@ -11,7 +11,7 @@ LIBPOSIX	:=	libposix$(PACKAGE_SUFFIX).so
 PVALAC_SRC	+=	$(wildcard compiler/*.vala)
 LIBPVALA_SRC	+=	$(wildcard gee/*.vala) $(wildcard ccode/*.vala)	\
 			$(wildcard codegen/*.vala) $(wildcard pvala/*.vala)
-LIBPOSIX_SRC	+=	$(wildcard vala-codegen-posix/*.vala)
+LIBPOSIX_SRC	+=	$(wildcard codegen-posix/*.vala)
 PVALAC_C_SRC	+=	$(patsubst %.vala,%.c,$(PVALAC_SRC))
 LIBPVALA_C_SRC	+=	$(patsubst %.vala,%.c,$(LIBPVALA_SRC))
 LIBPOSIX_C_SRC	+=	$(patsubst %.vala,%.c,$(LIBPOSIX_SRC))

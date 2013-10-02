@@ -1,15 +1,20 @@
 include common.mk
 
+VALAC		:=	valac
+
 DESTDIR		:=
 
 PVALAC		:=	$(NAME)c
 LIBPVALA	:=	lib$(NAME)$(PACKAGE_SUFFIX).so
 LIBPOSIX	:=	libposix$(PACKAGE_SUFFIX).so
 
-PVALAC_C_SRC	+=	$(wildcard compiler/*.c)
-LIBPVALA_C_SRC	+=	$(wildcard gee/*.c) $(wildcard ccode/*.c)	\
-			$(wildcard codegen/*.c) $(wildcard pvala/*.c)
-LIBPOSIX_C_SRC	+=	$(wildcard vala-codegen-posix/*.c)
+PVALAC_SRC	+=	$(wildcard compiler/*.vala)
+LIBPVALA_SRC	+=	$(wildcard gee/*.vala) $(wildcard ccode/*.vala)	\
+			$(wildcard codegen/*.vala) $(wildcard pvala/*.vala)
+LIBPOSIX_SRC	+=	$(wildcard vala-codegen-posix/*.vala)
+PVALAC_C_SRC	+=	$(patsubst %.vala,%.c,$(PVALAC_SRC))
+LIBPVALA_C_SRC	+=	$(patsubst %.vala,%.c,$(LIBPVALA_SRC))
+LIBPOSIX_C_SRC	+=	$(patsubst %.vala,%.c,$(LIBPOSIX_SRC))
 PVALAC_OBJ	+=	$(patsubst %.c,%.o,$(PVALAC_C_SRC))
 LIBPVALA_OBJ	+=	$(patsubst %.c,%.o,$(LIBPVALA_C_SRC))
 LIBPOSIX_OBJ	+=	$(patsubst %.c,%.o,$(LIBPOSIX_C_SRC))
@@ -19,6 +24,11 @@ PKGL		+=	$(shell pkg-config --libs $(PKGS))
 
 CFLAGS		+=	$(PKGC) -w -O2 -pipe -fPIC -I.
 LDFLAGS		+=	$(PKGL)
+
+PVALAC		:=	$(NAME)c
+VPKG		+=	$(patsubst %,--pkg=%,$(PKGS))
+VFLAGS		+=	--nostdpkg $(VPKG)
+VFLAGS		+=	--vapidir=vapi vapi/config.vapi
 
 all: $(PVALAC) $(LIBPOSIX)
 
@@ -37,6 +47,32 @@ $(LIBPOSIX): $(LIBPVALA) $(LIBPOSIX_OBJ)
 %.o: %.c
 	@echo "[CC]	$@"
 	@$(CC) -o $@ -c $< $(CFLAGS)
+
+pvalac.stamp: $(PVALAC_SRC)
+	@echo "Generating source for target: $(PVALAC) ..."
+	@valac $(VFLAGS) -C $(PVALAC_SRC) --vapidir=.			\
+		--pkg=lib$(NAME)$(PACKAGE_SUFFIX)
+	@touch $@
+
+libpvala.stamp: $(LIBPVALA_SRC)
+	@echo "Generating source for target: $(LIBPVALA) ..."
+	@valac $(VFLAGS) -C $(LIBPVALA_SRC) -H lib$(NAME)$(PACKAGE_SUFFIX).h \
+		--use-header=lib$(NAME)$(PACKAGE_SUFFIX).h		\
+		--vapi=lib$(NAME)$(PACKAGE_SUFFIX).vapi
+	@touch $@
+
+libposix.stamp: $(LIBPOSIX_SRC)
+	@echo "Generating source for target: $(LIBPOSIX) ..."
+	@valac $(VFLAGS) -C $(LIBPOSIX_SRC) --vapidir=.			\
+		--pkg=lib$(NAME)$(PACKAGE_SUFFIX)
+	@touch $@
+
+$(PVALAC_C_SRC): pvalac.stamp
+$(LIBPVALA_C_SRC): libpvala.stamp
+$(LIBPOSIX_C_SRC): libposix.stamp
+
+pvalac.stamp: libpvala.stamp
+libposix.stamp: libpvala.stamp
 
 install: all
 	@mkdir -pv $(DESTDIR)$(BINDIR)
@@ -64,7 +100,8 @@ uninstall:
 clean:
 	@echo "[Clean]"
 	@rm -f $(PVALAC) $(LIBPVALA) $(LIBPOSIX) \
-		$(PVALAC_OBJ) $(LIBPVALA_OBJ) $(LIBPOSIX_OBJ)
+		$(PVALAC_OBJ) $(LIBPVALA_OBJ) $(LIBPOSIX_OBJ) \
+		pvalac.stamp libpvala.stamp libposix.stamp
 
 distclean: clean
 	@echo "[Distclean]"

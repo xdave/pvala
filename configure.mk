@@ -25,20 +25,7 @@ SUBDIRS		:= gee ccode codegen pvala compiler vala-codegen-posix
 
 CLEANUP		:= $(shell rm -f $(GENERATED))
 
-VALAC		:=	valac
-
-PVALAC		:=	$(NAME)c
-LIBPVALA	:=	lib$(NAME)$(PACKAGE_SUFFIX).so
-LIBPOSIX	:=	libposix$(PACKAGE_SUFFIX).so
-PVALAC_SRC	+=	$(wildcard compiler/*.vala)
-LIBPVALA_SRC	+=	$(wildcard gee/*.vala) $(wildcard ccode/*.vala)	\
-			$(wildcard codegen/*.vala) $(wildcard pvala/*.vala)
-LIBPOSIX_SRC	+=	$(wildcard vala-codegen-posix/*.vala)
-VPKG		+=	$(patsubst %,--pkg=%,$(PKGS))
-VFLAGS		+=	--nostdpkg $(VPKG)
-VFLAGS		+=	--vapidir=vapi vapi/config.vapi
-
-all: check_progs check_pkgs $(GENERATED) gen_source
+all: check_progs check_pkgs $(GENERATED)
 	@echo "Done. Now type 'make'."
 
 check_progs:
@@ -119,16 +106,4 @@ config.h: config.h.in
 		-e "s|@DATAROOTDIR@|$(DATAROOTDIR)|g"			\
 		$< > $@
 
-gen_source:
-	@echo "Generating source for target: $(LIBPVALA) ..."
-	@valac $(VFLAGS) -C $(LIBPVALA_SRC) -H lib$(NAME)$(PACKAGE_SUFFIX).h	\
-		--use-header=lib$(NAME)$(PACKAGE_SUFFIX).h			\
-		--vapi=lib$(NAME)$(PACKAGE_SUFFIX).vapi
-	@echo "Generating source for target: $(PVALAC) ..."
-	@valac $(VFLAGS) -C $(PVALAC_SRC) --vapidir=. 				\
-		--pkg=lib$(NAME)$(PACKAGE_SUFFIX)
-	@echo "Generating source for target: $(LIBPOSIX) ..."
-	@valac $(VFLAGS) -C $(LIBPOSIX_SRC) --vapidir=. \
-		--pkg=lib$(NAME)$(PACKAGE_SUFFIX)
-
-.PHONY: $(PROGS) $(PKGS) check_progs check_pkgs gen_source
+.PHONY: $(PROGS) $(PKGS) check_progs check_pkgs

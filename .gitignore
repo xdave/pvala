@@ -5,15 +5,10 @@ common.mk
 pvalac
 *.o
 *.so
-*.lo
-*.la
 *.c
 libpvala-*.h
 config.h
 version.h
 *.stamp
-*.gir
-.deps
-.libs
 *.pc
 *~

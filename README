@@ -3,17 +3,25 @@ PVala
 
 PVala is a fork of the Vala compiler which adds support for pluggable code
 generators, and specifically, a POSIX C code generator which does not introduce
-any other runtime requirements to generated code except libc (no GLib).
+any runtime requirements to generated code except hopefully standard libc.
 
-It is planned that GLib support, and any .vapi files which depend on GLib will
-be removed.
+The code is based on the patches submitted by Andrea Del Signore to the GNOME
+mailing list archives:
+	https://mail.gnome.org/archives/vala-devel-list/2012-August/msg00008.html
 
-Eventually, it should be possible to make PVala self-hosting, in the same way
-that Vala itself is a self-hosting compiler.
+The build system has been replaced with a simple shell script configure script
+that generates a Makefile (and other things).
 
+You should be able to install pvala to your system to /usr (or /usr/local) using
+the --prefix configure option.  It won't conflict with any currently installed
+version of vala that you have on your system. Example:
 
-Vala README
-------------
+	./configure --prefix=/usr
+	make -j16
+	make install
+
+Original Vala README
+--------------------
 
 Vala is a programming language that aims to bring modern programming
 language features to GNOME developers without imposing any additional

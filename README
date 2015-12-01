@@ -21,7 +21,7 @@ version of vala that you have on your system. Example:
 	sudo make install
 
 If you want to, you can also use:
-	make uninstall
+	sudo make uninstall
 
 to remove pvala from your system.  Just make sure you haven't overridden the
 --prefix using the configure script to something other than it was originally

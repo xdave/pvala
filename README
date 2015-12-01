@@ -9,8 +9,8 @@ The code is based on the patches submitted by Andrea Del Signore to the GNOME
 mailing list archives:
 	https://mail.gnome.org/archives/vala-devel-list/2012-August/msg00008.html
 
-The build system has been replaced with a simple shell script configure script
-that generates a Makefile (and other things).
+The build system has been replaced with a simple shell configure script that
+generates a Makefile (and other things).
 
 You should be able to install pvala to your system to /usr (or /usr/local) using
 the --prefix configure option.  It won't conflict with any currently installed
@@ -18,7 +18,30 @@ version of vala that you have on your system. Example:
 
 	./configure --prefix=/usr
 	make -j16
-	make install
+	sudo make install
+
+If you want to, you can also use:
+	make uninstall
+
+to remove pvala from your system.  Just make sure you haven't overridden the
+--prefix using the configure script to something other than it was originally
+installed with.
+
+If you feel your build is dirty compared to git, you can clean things up:
+	sudo make uninstall
+	make distclean
+	git pull
+
+And start over.
+
+What works?
+-----------
+- Classes (not only [Compact] classes)
+- Single inheritance
+- Interfaces
+- Not sure what else yet :)
+- The runtime is sorta leaky (ie. valgrind reports 'possibly lost' bytes)
+
 
 Original Vala README
 --------------------

@@ -40,7 +40,13 @@ What works?
 - Single inheritance
 - Interfaces
 - Not sure what else yet :)
+
+What's broken?
+--------------
 - The runtime is sorta leaky (ie. valgrind reports 'possibly lost' bytes)
+- Doesn't work right without --profile=posix option being used
+- Need to use the -C or --ccode and compile the C code yourself as it still
+  links to glib for some reason. :P
 
 
 Original Vala README

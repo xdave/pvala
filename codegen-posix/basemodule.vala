@@ -313,7 +313,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 
 	public static int ccode_attribute_cache_index = CodeNode.get_attribute_cache_index ();
 
-	private bool gen_posix_object_type_def_done = false;
+	private bool generate_posix_runtime_code_done = false;
 	
 	public PosixBaseModule () {
 		predefined_marshal_set = new HashSet<string> (str_hash, str_equal);
@@ -420,7 +420,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 		object_type = (Class) root_symbol.scope.lookup ("Object");
 
 		header_file = new CCodeFile ();
-		generate_posix_runtime_decl(header_file);
+		generate_posix_runtime_decl (header_file);
 		header_file.is_header = true;
 		internal_header_file = new CCodeFile ();
 		internal_header_file.is_header = true;
@@ -660,20 +660,340 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 	}
 
 	private void generate_posix_runtime_decl (CCodeFile cfile) {
-		cfile.add_include("pvala%s/%s".printf(Config.PACKAGE_SUFFIX, "posixrt.h"));
+		/* BEGIN: Generate the Minimal Posix Runtime Declarations */
+		cfile.add_include ("stdarg.h");
+
+		cfile.add_type_declaration (new CCodeConstant("#ifndef __POSIXRT__\n"));
+		cfile.add_type_declaration (new CCodeConstant("#define __POSIXRT__\n\n"));
+
+		cfile.add_type_declaration (new CCodeTypeDefinition ("struct _Type", new CCodeVariableDeclarator ("Type")));
+		cfile.add_type_declaration (new CCodeTypeDefinition ("struct _Object", new CCodeVariableDeclarator ("Object")));
+		cfile.add_type_declaration (new CCodeTypeDefinition ("struct _SignalHandler", new CCodeVariableDeclarator ("SignalHandler")));
+		cfile.add_type_declaration (new CCodeTypeDefinition ("void (*SignalMarshaller)", new CCodeVariableDeclarator ("(void* instance, void *callback, void *user_data, void *result, va_list args)")));
+		cfile.add_type_declaration (new CCodeTypeDefinition ("void (*NotifyCallback)", new CCodeVariableDeclarator ("(void* user_data)")));
+
+		// Type structure
+		var type_struct = new CCodeStruct ("_Type");
+		type_struct.add_field ("Type *", "base_type");
+		type_struct.add_field ("void", "(*finalize) (void *instance)");
+		type_struct.add_field ("void *", "(*get_interface) (void *instance, void *interface_type)");
+		cfile.add_type_declaration (type_struct);
+
+		// Object class
+		var instance_struct = new CCodeStruct ("_Object");
+		instance_struct.add_field ("Type *", "type");
+		instance_struct.add_field ("volatile unsigned int", "ref_count");
+		cfile.add_type_declaration (instance_struct);
+
+		// SignalHandler structure
+		var signal_struct = new CCodeStruct ("_SignalHandler");
+		signal_struct.add_field ("void", "(*callback) (void)");
+		signal_struct.add_field ("void", "(*disconnect_notify) (void *user_data)");
+		signal_struct.add_field ("void *", "user_data");
+		signal_struct.add_field ("SignalHandler *", "next");
+		cfile.add_type_declaration (signal_struct);
+
+		cfile.add_type_declaration (new CCodeConstant("#endif /* __POSIXRT__ */\n"));
+		/* END: Generate the Minimal Posix Runtime Declarations */
 	}
 
-	private void generate_posix_runtime_code (CCodeFile file) {
-		cfile.add_include("pvala%s/%s".printf(Config.PACKAGE_SUFFIX, "posixrt.h"));
-		if (gen_posix_object_type_def_done == false) {
-			/* generate object_type variable*/
-			var type_var_decl = new CCodeVariableDeclarator ("object_type");
+	private void generate_posix_runtime_code (CCodeFile file, bool declaration_only) {
+		// the simple posix runtime should be generated just once file
+		if (!declaration_only)
+				generate_posix_runtime_code_done = true;
+
+		var ref_count = new CCodeMemberAccess.pointer (new CCodeIdentifier ("self"), "ref_count");
+		/* generate object_ref */
+		var function = new CCodeFunction ("object_ref", "void *");
+		CCodeFunctionCall ccall;
+
+		function.add_parameter (new CCodeParameter ("instance", "void *"));
+		if (!declaration_only) {
+			push_function (function);
+
+			ccode.add_declaration ("Object *", new CCodeVariableDeclarator ("self", new CCodeCastExpression(new CCodeIdentifier ("instance"), "Object *")));
+			ccall = new CCodeFunctionCall (new CCodeIdentifier ("os_atomic_int_inc"));
+			ccall.add_argument (new CCodeUnaryExpression (CCodeUnaryOperator.ADDRESS_OF, ref_count));
+			ccode.add_expression (ccall);
+			ccode.add_return (new CCodeIdentifier ("instance"));
+
+			pop_function ();
+
+			// append to file
+			cfile.add_function (function);
+		}
+		cfile.add_function_declaration (function);
+
+		/* generate object_unref */
+		function = new CCodeFunction ("object_unref", "void");
+		function.add_parameter (new CCodeParameter ("instance", "void *"));
+		if (!declaration_only) {
+			push_function (function);
+
+			ccode.add_declaration ("Object *", new CCodeVariableDeclarator ("self", new CCodeCastExpression(new CCodeIdentifier ("instance"), "Object *")));
+			ccall = new CCodeFunctionCall (new CCodeIdentifier ("os_atomic_int_dec_and_test"));
+			ccall.add_argument (new CCodeUnaryExpression (CCodeUnaryOperator.ADDRESS_OF, ref_count));
+			ccode.open_if (ccall);
+
+			// finalize class
+			ccall = new CCodeFunctionCall (new CCodeMemberAccess.pointer (new CCodeMemberAccess.pointer(new CCodeIdentifier ("self"), "type"), "finalize"));
+			ccall.add_argument (new CCodeIdentifier ("self"));
+			ccode.add_expression (ccall);
+
+			// free type instance
+			var free = new CCodeFunctionCall (new CCodeIdentifier ("free"));
+			free.add_argument (new CCodeIdentifier ("self"));
+			ccode.add_expression (free);
+
+			pop_function ();
+
+			cfile.add_function (function);
+		}
+		cfile.add_function_declaration (function);
+
+		/* object_signal_connect */
+		function = new CCodeFunction ("object_signal_connect", "unsigned long");
+		function.add_parameter (new CCodeParameter ("instance", "void *"));
+		function.add_parameter (new CCodeParameter ("handlers", "SignalHandler **"));
+		function.add_parameter (new CCodeParameter ("callback", "void *"));
+		function.add_parameter (new CCodeParameter ("user_data", "void *"));
+		function.add_parameter (new CCodeParameter ("disconnect_notify", "void *"));
+		if (!declaration_only) {
+			push_function (function);
+
+			ccall = new CCodeFunctionCall (new CCodeIdentifier ("malloc"));
+			ccall.add_argument (new CCodeIdentifier ("sizeof (SignalHandler)"));
+			ccode.add_declaration ("SignalHandler *", new CCodeVariableDeclarator ("signal", ccall));
+
+			ccode.add_assignment (new CCodeMemberAccess.pointer (new CCodeIdentifier("signal"), "callback"), new CCodeIdentifier("callback"));
+			ccode.add_assignment (new CCodeMemberAccess.pointer (new CCodeIdentifier("signal"), "user_data"), new CCodeIdentifier("user_data"));
+			ccode.add_assignment (new CCodeMemberAccess.pointer (new CCodeIdentifier("signal"), "disconnect_notify"), new CCodeIdentifier("disconnect_notify"));
+			ccode.add_assignment (new CCodeMemberAccess.pointer (new CCodeIdentifier("signal"), "next"), new CCodeIdentifier("NULL"));
+			ccode.open_if (new CCodeBinaryExpression (
+				CCodeBinaryOperator.EQUALITY,
+				new CCodeUnaryExpression(CCodeUnaryOperator.POINTER_INDIRECTION, new CCodeIdentifier("handlers")),
+				new CCodeIdentifier("NULL")));
+			ccode.add_assignment (new CCodeUnaryExpression(CCodeUnaryOperator.POINTER_INDIRECTION, new CCodeIdentifier("handlers")), new CCodeIdentifier ("signal"));
+			ccode.add_else ();
+			ccode.add_declaration ("SignalHandler *", new CCodeVariableDeclarator ("last", new CCodeUnaryExpression(CCodeUnaryOperator.POINTER_INDIRECTION, new CCodeIdentifier("handlers"))));
+			ccode.open_while (new CCodeBinaryExpression (CCodeBinaryOperator.INEQUALITY, new CCodeMemberAccess.pointer (new CCodeIdentifier ("last"), "next"), new CCodeIdentifier ("NULL")));
+			ccode.add_assignment (new CCodeIdentifier ("last"), new CCodeMemberAccess.pointer (new CCodeIdentifier ("last"), "next"));
+			ccode.close ();
+			ccode.add_assignment (new CCodeMemberAccess.pointer (new CCodeIdentifier ("last"), "next"), new CCodeIdentifier ("signal"));
+			ccode.close ();
+			ccode.add_return (new CCodeCastExpression (new CCodeIdentifier ("signal"), "unsigned long"));
+			pop_function ();
+
+			cfile.add_function (function);
+		}
+		cfile.add_function_declaration (function);
+
+		/* object_signal_emit */
+		function = new CCodeFunction ("object_signal_emit", "void");
+		function.add_parameter (new CCodeParameter ("instance", "void *"));
+		function.add_parameter (new CCodeParameter ("handler", "SignalHandler *"));
+		function.add_parameter (new CCodeParameter ("marshaller", "SignalMarshaller"));
+		function.add_parameter (new CCodeParameter ("result", "void *"));
+		function.add_parameter (new CCodeParameter.with_ellipsis ());
+		if (!declaration_only) {
+			push_function (function);
+
+			ccode.add_declaration ("va_list", new CCodeVariableDeclarator ("ap"));
+			ccode.add_declaration ("va_list", new CCodeVariableDeclarator ("args"));
+			ccode.add_declaration ("void *", new CCodeVariableDeclarator ("marshaller_result", new CCodeIdentifier ("NULL")));
+
+			ccall = new CCodeFunctionCall (new CCodeIdentifier ("va_start"));
+			ccall.add_argument (new CCodeIdentifier ("ap"));
+			ccall.add_argument (new CCodeIdentifier ("result"));
+			ccode.add_expression (ccall);
+
+			ccall = new CCodeFunctionCall (new CCodeIdentifier ("va_copy"));
+			ccall.add_argument (new CCodeIdentifier ("args"));
+			ccall.add_argument (new CCodeIdentifier ("ap"));
+			ccode.add_expression (ccall);
+
+			ccode.open_while (new CCodeBinaryExpression (CCodeBinaryOperator.INEQUALITY, new CCodeIdentifier ("handler"), new CCodeIdentifier ("NULL")));
+			ccall = new CCodeFunctionCall (new CCodeIdentifier ("marshaller"));
+			ccall.add_argument (new CCodeIdentifier ("instance"));
+			ccall.add_argument (new CCodeMemberAccess.pointer (new CCodeIdentifier ("handler"), "callback"));
+			ccall.add_argument (new CCodeMemberAccess.pointer (new CCodeIdentifier ("handler"), "user_data"));
+			ccall.add_argument (new CCodeIdentifier ("marshaller_result"));
+			ccall.add_argument (new CCodeIdentifier ("args"));
+			ccode.add_expression (ccall);
+			ccode.add_assignment (new CCodeIdentifier ("handler"), new CCodeMemberAccess.pointer (new CCodeIdentifier ("handler"), "next"));
+			ccode.close ();
+
+			ccode.open_if (new CCodeBinaryExpression (CCodeBinaryOperator.INEQUALITY, new CCodeIdentifier ("result"), new CCodeIdentifier ("NULL")));
+			ccode.add_assignment (new CCodeIdentifier ("result"), new CCodeIdentifier ("marshaller_result"));
+			ccode.close ();
+
+			ccall = new CCodeFunctionCall (new CCodeIdentifier ("va_end"));
+			ccall.add_argument (new CCodeIdentifier ("args"));
+			ccode.add_expression (ccall);
+
+			ccall = new CCodeFunctionCall (new CCodeIdentifier ("va_end"));
+			ccall.add_argument (new CCodeIdentifier ("ap"));
+			ccode.add_expression (ccall);
+
+			pop_function ();
+
+			cfile.add_function (function);
+		}
+		cfile.add_function_declaration (function);
+
+		/* object_signal_disconnect_callback */
+		function = new CCodeFunction ("object_signal_disconnect_callback", "void");
+		function.add_parameter (new CCodeParameter ("instance", "void *"));
+		function.add_parameter (new CCodeParameter ("handlers", "SignalHandler **"));
+		function.add_parameter (new CCodeParameter ("callback", "void *"));
+		if (!declaration_only) {
+			push_function (function);
+
+			ccode.add_declaration ("SignalHandler *", new CCodeVariableDeclarator ("handler", new CCodeUnaryExpression (CCodeUnaryOperator.POINTER_INDIRECTION, new CCodeIdentifier("handlers"))));
+			ccode.add_declaration ("SignalHandler *", new CCodeVariableDeclarator ("prev", new CCodeIdentifier ("NULL")));
+
+			ccode.open_while (new CCodeBinaryExpression (CCodeBinaryOperator.INEQUALITY, new CCodeIdentifier ("handler"), new CCodeIdentifier ("NULL")));
+			ccode.open_if (new CCodeBinaryExpression (CCodeBinaryOperator.EQUALITY, new CCodeMemberAccess.pointer (new CCodeIdentifier("handler"), "callback"), new CCodeIdentifier ("callback")));
+			ccode.add_declaration ("SignalHandler *", new CCodeVariableDeclarator ("tmp", new CCodeIdentifier ("handler")));
+			ccode.open_if (new CCodeBinaryExpression (CCodeBinaryOperator.EQUALITY, new CCodeIdentifier ("prev"), new CCodeIdentifier ("NULL")));
+			ccode.add_assignment (
+				new CCodeUnaryExpression (CCodeUnaryOperator.POINTER_INDIRECTION, new CCodeIdentifier("handlers")),
+				new CCodeMemberAccess.pointer (new CCodeIdentifier("handler"), "next"));
+			ccode.add_else ();
+			ccode.add_assignment (
+				new CCodeMemberAccess.pointer (new CCodeIdentifier("prev"), "next"),
+				new CCodeMemberAccess.pointer (new CCodeIdentifier("handler"), "next"));
+			ccode.close ();
+			ccode.add_assignment (
+				new CCodeIdentifier ("handler"),
+				new CCodeMemberAccess.pointer (new CCodeIdentifier("handler"), "next"));
+			ccode.open_if (new CCodeBinaryExpression (CCodeBinaryOperator.INEQUALITY, new CCodeMemberAccess.pointer (new CCodeIdentifier ("tmp"), "disconnect_notify"), new CCodeIdentifier ("NULL")));
+			ccall = new CCodeFunctionCall(new CCodeMemberAccess.pointer (new CCodeIdentifier ("tmp"), "disconnect_notify"));
+			ccall.add_argument (new CCodeMemberAccess.pointer (new CCodeIdentifier ("tmp"), "user_data"));
+			ccode.add_expression (ccall);
+			ccode.close ();
+			ccall = new CCodeFunctionCall (new CCodeIdentifier ("free"));
+			ccall.add_argument (new CCodeIdentifier ("tmp"));
+			ccode.add_expression (ccall);
+			ccode.add_else ();
+			ccode.add_assignment (new CCodeIdentifier ("prev"), new CCodeIdentifier ("handler"));
+			ccode.add_assignment (new CCodeIdentifier ("handler"), new CCodeMemberAccess.pointer (new CCodeIdentifier ("handler"), "next"));
+			ccode.close ();
+
+			pop_function ();
+			cfile.add_function_declaration (function);
+			cfile.add_function (function);
+
+			/* generate object_instance_init */
+			function  = new CCodeFunction ("object_instance_init", "void");
+			function.add_parameter (new CCodeParameter ("instance", "void *"));
+			push_function (function);
+			ccode.add_expression (new CCodeAssignment (new CCodeMemberAccess.pointer (new CCodeCastExpression(new CCodeIdentifier ("instance"), "Object *"), "ref_count"), new CCodeConstant ("1")));
+			pop_function ();
+			cfile.add_function (function);
+		}
+		cfile.add_function_declaration (function);
+
+		/* object_is_subtype_of */
+		function = new CCodeFunction ("object_is_subtype_of", "int");
+		function.add_parameter (new CCodeParameter ("instance", "void *"));
+		function.add_parameter (new CCodeParameter ("type", "void *"));
+		if (!declaration_only) {
+			push_function (function);
+
+			ccode.add_declaration ("Object *", new CCodeVariableDeclarator ("self", new CCodeCastExpression (new CCodeIdentifier ("instance"), "Object *")));
+
+			ccode.open_if (new CCodeBinaryExpression (CCodeBinaryOperator.EQUALITY, new CCodeMemberAccess.pointer (new CCodeIdentifier("self"), "type"), new CCodeIdentifier ("type")));
+			ccode.add_return (new CCodeIdentifier("1"));
+			ccode.add_else ();
+			var base_access = new CCodeMemberAccess.pointer (new CCodeCastExpression (new CCodeMemberAccess.pointer (new CCodeIdentifier("self"), "type"), "Type *"), "base_type");
+			ccode.add_declaration ("Type *", new CCodeVariableDeclarator ("current_type", base_access));
+			ccode.open_while (new CCodeBinaryExpression (CCodeBinaryOperator.INEQUALITY, new CCodeIdentifier ("current_type"), new CCodeIdentifier ("NULL")));
+
+			ccode.open_if (new CCodeBinaryExpression (CCodeBinaryOperator.EQUALITY, new CCodeIdentifier ("current_type"), new CCodeIdentifier ("type")));
+			ccode.add_return (new CCodeIdentifier("1"));
+			ccode.close ();
+
+			ccode.add_assignment (
+				new CCodeIdentifier("current_type"),
+				new CCodeMemberAccess.pointer (new CCodeIdentifier("current_type"), "base_type"));
+			ccode.close ();
+
+			ccode.add_statement (new CCodeComment ("check interfaces"));
+			var ccast = new CCodeCastExpression (new CCodeParenthesizedExpression(new CCodeMemberAccess.pointer (new CCodeIdentifier("self"), "type")), "Type *");
+
+			var ma = new CCodeMemberAccess.pointer (ccast, "get_interface");
+			ccall = new CCodeFunctionCall (ma);
+			ccall.add_argument (new CCodeIdentifier ("instance"));
+			ccall.add_argument (new CCodeIdentifier ("type"));
+
+			ccode.open_if (new CCodeBinaryExpression (CCodeBinaryOperator.INEQUALITY, ccall, new CCodeIdentifier ("NULL")));
+			ccode.add_return (new CCodeIdentifier("1"));
+			ccode.close ();
+
+			ccode.close ();
+			ccode.add_return (new CCodeIdentifier("0"));
+
+			pop_function ();
+			cfile.add_function (function);
+		}
+		cfile.add_function_declaration (function);
+
+		/* generate object_type_init */
+		var type_init = new CCodeBlock ();
+		function  = new CCodeFunction ("object_type_init", "void");
+		if (!declaration_only) {
+			push_function (function);
+
+			var condition = new CCodeBinaryExpression (CCodeBinaryOperator.EQUALITY, new CCodeIdentifier("object_type"), new CCodeConstant ("NULL"));
+			ccode.add_statement (new CCodeIfStatement (condition, type_init));
+
+			ccall = new CCodeFunctionCall (new CCodeIdentifier ("calloc"));
+			ccall.add_argument (new CCodeConstant("1"));
+			ccall.add_argument (new CCodeIdentifier ("sizeof (Type)"));
+			type_init.add_statement (new CCodeExpressionStatement (new CCodeAssignment (new CCodeIdentifier("object_type"), new CCodeCastExpression (ccall, "Type *"))));
+
+			CCodeAssignment assignment = new CCodeAssignment (new CCodeMemberAccess.pointer (new CCodeIdentifier ("object_type"), "finalize"), new CCodeIdentifier ("object_finalize"));
+			type_init.add_statement (new CCodeExpressionStatement (assignment));
+			assignment = new CCodeAssignment (new CCodeMemberAccess.pointer (new CCodeIdentifier ("object_type"), "get_interface"),  new CCodeIdentifier ("object_get_interface"));
+			type_init.add_statement (new CCodeExpressionStatement (assignment));
+
+			pop_function ();
+
+			cfile.add_function (function);
+		}
+		cfile.add_function_declaration (function);
+
+		/* generate object_type variable*/
+		var type_var_decl = new CCodeVariableDeclarator ("object_type");
+		if (!declaration_only) {
 			type_var_decl.initializer = new CCodeConstant("NULL");
-			var type_decl = new CCodeDeclaration ("Type *");
-			type_decl.add_declarator (type_var_decl);
-			type_decl.modifiers = CCodeModifiers.EXTERN;
-			cfile.add_type_declaration (type_decl);
-			gen_posix_object_type_def_done = true;
+		}
+		var type_decl = new CCodeDeclaration ("Type *");
+		type_decl.add_declarator (type_var_decl);
+		type_decl.modifiers = CCodeModifiers.EXTERN;
+		cfile.add_type_declaration (type_decl);
+		cfile.add_type_declaration (new CCodeMacroReplacement ("os_atomic_int_inc(p)", "(__sync_fetch_and_add(p, 1 ))"));
+		cfile.add_type_declaration (new CCodeMacroReplacement ("os_atomic_int_dec_and_test(p)", "((__sync_sub_and_fetch (p, 1)) == 0)"));
+
+		/* STATIC FUNCTIONS */
+		if (!declaration_only) {
+			/* generate object_finalize */
+			function  = new CCodeFunction ("object_finalize", "void");
+			function.modifiers = CCodeModifiers.STATIC;
+			function.add_parameter (new CCodeParameter ("instance", "void *"));
+			cfile.add_function (function);
+			cfile.add_function_declaration (function);
+
+			/* generate object_get_interface */
+			function  = new CCodeFunction ("object_get_interface", "void *");
+			function.modifiers = CCodeModifiers.STATIC;
+			function.add_parameter (new CCodeParameter ("instance", "void *"));
+			function.add_parameter (new CCodeParameter ("interface_type", "void *"));
+			function.add_return (new CCodeIdentifier("NULL"));
+
+			cfile.add_function_declaration (function);
+			cfile.add_function (function);
 		}
 	}
 
@@ -695,7 +1015,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 		wrappers = new HashSet<string> (str_hash, str_equal);
 		generated_external_symbols = new HashSet<Symbol> ();
 
-		generate_posix_runtime_decl(cfile);
+		generate_posix_runtime_decl (cfile);
 
 		source_file.accept_children (this);
 
@@ -745,7 +1065,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 			}
 		}
 
-		generate_posix_runtime_code(cfile);
+		generate_posix_runtime_code (cfile, generate_posix_runtime_code_done || context.header_filename != null);
 
 		if (!cfile.store (source_file.get_csource_filename (), source_file.filename, context.version_header, context.debug)) {
 			Report.error (null, "unable to open `%s' for writing".printf (source_file.get_csource_filename ()));

@@ -6,9 +6,7 @@ pvalac
 *.o
 *.so
 *.c
-libpvala-*.h
-config.h
-version.h
+*.h
 *.stamp
 *.pc
 *~

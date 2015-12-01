@@ -420,6 +420,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 		object_type = (Class) root_symbol.scope.lookup ("Object");
 
 		header_file = new CCodeFile ();
+		generate_posix_runtime_decl(header_file);
 		header_file.is_header = true;
 		internal_header_file = new CCodeFile ();
 		internal_header_file.is_header = true;
@@ -658,12 +659,12 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 		cfile.add_function (fun);
 	}
 
-	private void generate_posix_runtime_decl (CCodeFile file) {
-		file.add_include("pvala%s/%s".printf(Config.PACKAGE_SUFFIX, "posixrt.h"));
+	private void generate_posix_runtime_decl (CCodeFile cfile) {
+		cfile.add_include("pvala%s/%s".printf(Config.PACKAGE_SUFFIX, "posixrt.h"));
 	}
 
 	private void generate_posix_runtime_code (CCodeFile file) {
-		file.add_include("pvala%s/%s".printf(Config.PACKAGE_SUFFIX, "posixrt.h"));
+		cfile.add_include("pvala%s/%s".printf(Config.PACKAGE_SUFFIX, "posixrt.h"));
 		if (gen_posix_object_type_def_done == false) {
 			/* generate object_type variable*/
 			var type_var_decl = new CCodeVariableDeclarator ("object_type");
@@ -671,7 +672,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 			var type_decl = new CCodeDeclaration ("Type *");
 			type_decl.add_declarator (type_var_decl);
 			type_decl.modifiers = CCodeModifiers.EXTERN;
-			file.add_type_declaration (type_decl);
+			cfile.add_type_declaration (type_decl);
 			gen_posix_object_type_def_done = true;
 		}
 	}
@@ -694,9 +695,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 		wrappers = new HashSet<string> (str_hash, str_equal);
 		generated_external_symbols = new HashSet<Symbol> ();
 
-		generate_posix_runtime_decl(header_file);
-		generate_posix_runtime_decl(internal_header_file);
-		generate_posix_runtime_code(cfile);
+		generate_posix_runtime_decl(cfile);
 
 		source_file.accept_children (this);
 
@@ -746,6 +745,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 			}
 		}
 
+		generate_posix_runtime_code(cfile);
 
 		if (!cfile.store (source_file.get_csource_filename (), source_file.filename, context.version_header, context.debug)) {
 			Report.error (null, "unable to open `%s' for writing".printf (source_file.get_csource_filename ()));

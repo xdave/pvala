@@ -207,7 +207,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 	public EmitContext instance_init_context;
 	public EmitContext instance_finalize_context;
 	public EmitContext get_interface_context;
-	
+
 	public CCodeStruct param_spec_struct;
 	public CCodeStruct closure_struct;
 	public CCodeEnum prop_enum;
@@ -222,7 +222,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 	public Set<string> predefined_marshal_set;
 	/* (constant) hash table with all reserved identifiers in the generated code */
 	Set<string> reserved_identifiers;
-	
+
 	public int next_temp_var_id {
 		get { return emit_context.next_temp_var_id; }
 		set { emit_context.next_temp_var_id = value; }
@@ -297,7 +297,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 
 	public bool in_plugin = false;
 	public string module_init_param_name;
-	
+
 	public bool gvaluecollector_h_needed;
 	public bool requires_assert;
 	public bool requires_array_free;
@@ -314,7 +314,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 	public static int ccode_attribute_cache_index = CodeNode.get_attribute_cache_index ();
 
 	private bool generate_posix_runtime_code_done = false;
-	
+
 	public PosixBaseModule () {
 		predefined_marshal_set = new HashSet<string> (str_hash, str_equal);
 		predefined_marshal_set.add ("VOID:VOID");
@@ -999,11 +999,11 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 
 	public override void visit_source_file (SourceFile source_file) {
 		cfile = new CCodeFile ();
-		
+
 		user_marshal_set = new HashSet<string> (str_hash, str_equal);
-		
+
 		next_regex_id = 0;
-		
+
 		gvaluecollector_h_needed = false;
 		requires_assert = false;
 		requires_array_free = false;
@@ -1113,13 +1113,13 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 		decl_space.add_type_declaration (new CCodeMacroReplacement (get_ccode_type_id (en), macro));
 
 		var fun_name = "%s_get_type".printf (get_ccode_lower_case_name (en, null));
-		var regfun = new CCodeFunction (fun_name, "GType");
-		regfun.attributes = "G_GNUC_CONST";
+		var regfun = new CCodeFunction (fun_name, "Type");
+		regfun.attributes = "__attribute__ ((const))";
 
 		if (en.access == SymbolAccessibility.PRIVATE) {
 			regfun.modifiers = CCodeModifiers.STATIC;
 			// avoid C warning as this function is not always used
-			regfun.attributes = "G_GNUC_UNUSED";
+			regfun.attributes = "__attribute__ ((unused))";
 		}
 
 		decl_space.add_function_declaration (regfun);
@@ -1410,7 +1410,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 
 				pop_context ();
 			}
-			
+
 			if (requires_destroy (f.variable_type) && instance_finalize_context != null) {
 				push_context (instance_finalize_context);
 				ccode.add_expression (destroy_field (f, load_this_parameter ((TypeSymbol) f.parent_symbol)));
@@ -2277,7 +2277,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 			var unref_fun = new CCodeFunction ("block%d_data_unref".printf (block_id), "void");
 			unref_fun.add_parameter (new CCodeParameter ("_userdata_", "void *"));
 			unref_fun.modifiers = CCodeModifiers.STATIC;
-			
+
 			push_function (unref_fun);
 
 			ccode.add_declaration (struct_name + "*", new CCodeVariableDeclarator ("_data%d_".printf (block_id), new CCodeCastExpression (new CCodeIdentifier ("_userdata_"), struct_name + "*")));
@@ -2619,7 +2619,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 				}
 			}
 		}
-	
+
 		if (rhs != null) {
 			if (!is_simple_struct_creation (local, local.initializer)) {
 				store_local (local, local.initializer.target_value, true);
@@ -2784,7 +2784,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 		}
 
 		next_temp_var_id++;
-		
+
 		return local;
 	}
 
@@ -3493,7 +3493,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 				var base_cl = cl.base_class;
 				while (base_cl.base_class != null)
 					base_cl = base_cl.base_class;
-					
+
 				cvar = new CCodeCastExpression(cvar, "%s *".printf (get_ccode_name (base_cl)));
 			}
 			*/
@@ -3502,7 +3502,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 		}
 
 		/* (foo == NULL ? NULL : foo = (unref (foo), NULL)) */
-		
+
 		/* can be simplified to
 		 * foo = (unref (foo), NULL)
 		 * if foo is of static type non-null
@@ -3528,7 +3528,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 
 		ccomma.append_expression (ccall);
 		ccomma.append_expression (new CCodeConstant ("NULL"));
-		
+
 		var cassign = new CCodeAssignment (cvar, ccomma);
 
 		// g_free (NULL) is allowed
@@ -3540,7 +3540,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 
 		return new CCodeConditionalExpression (cisnull, new CCodeConstant ("NULL"), cassign);
 	}
-	
+
 	public override void visit_end_full_expression (Expression expr) {
 		/* expr is a full expression, i.e. an initializer, the
 		 * expression in an expression statement, the controlling
@@ -3565,7 +3565,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 
 		temp_ref_values.clear ();
 	}
-	
+
 	public void emit_temp_var (LocalVariable local) {
 		var init = !(local.name.has_prefix ("*") || local.no_init);
 		if (is_in_coroutine ()) {
@@ -3865,7 +3865,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 		var inner_node = ((MemberAccess)resource).inner;
 		var member = resource.symbol_reference;
 		var parent = (TypeSymbol)resource.symbol_reference.parent_symbol;
-		
+
 		if (member.is_instance_member ()) {
 			if (inner_node  == null) {
 				l = new CCodeIdentifier ("self");
@@ -3896,7 +3896,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 		}
 		return l;
 	}
-		
+
 	public override void visit_lock_statement (LockStatement stmt) {
 		var l = get_lock_expression (stmt, stmt.resource);
 
@@ -3905,13 +3905,13 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 
 		ccode.add_expression (fc);
 	}
-		
+
 	public override void visit_unlock_statement (UnlockStatement stmt) {
 		var l = get_lock_expression (stmt, stmt.resource);
-		
+
 		var fc = new CCodeFunctionCall (new CCodeIdentifier (get_ccode_name (mutex_type.scope.lookup ("unlock"))));
 		fc.add_argument (new CCodeUnaryExpression (CCodeUnaryOperator.ADDRESS_OF, l));
-		
+
 		ccode.add_expression (fc);
 	}
 
@@ -4164,17 +4164,17 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 		// return previous value
 		expr.target_value = temp_value;
 	}
-	
+
 	private MemberAccess? find_property_access (Expression expr) {
 		if (!(expr is MemberAccess)) {
 			return null;
 		}
-		
+
 		var ma = (MemberAccess) expr;
 		if (ma.symbol_reference is Property) {
 			return ma;
 		}
-		
+
 		return null;
 	}
 
@@ -4318,7 +4318,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 		 * ref (expr)
 		 * if static type of expr is non-null
 		 */
-		 
+
 		var dupexpr = get_dup_func_expression (type, node.source_reference);
 
 		if (dupexpr == null) {
@@ -4367,7 +4367,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 		if (!(type is ArrayType) && get_non_null (value) && !is_ref_function_void (type)) {
 			// expression is non-null
 			ccall.add_argument (cexpr);
-			
+
 			return store_temp_value (new GLibValue (type, ccall), node);
 		} else {
 			var cnotnull = new CCodeBinaryExpression (CCodeBinaryOperator.INEQUALITY, cexpr, new CCodeConstant ("NULL"));
@@ -4772,14 +4772,14 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 					cexpr = handle_struct_argument (null, arg, cexpr);
 					arg_pos = get_param_pos (i, ellipsis);
 				}
-			
+
 				carg_map.set (arg_pos, cexpr);
 
 				i++;
 			}
 			if (params_it.next ()) {
 				var param = params_it.get ();
-				
+
 				/* if there are more parameters than arguments,
 				 * the additional parameter is an ellipsis parameter
 				 * otherwise there is a bug in the semantic analyzer
@@ -5252,7 +5252,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 			}
 		}
 	}
-	
+
 	public override void visit_named_argument (NamedArgument expr) {
 		set_cvalue (expr, get_cvalue (expr.inner));
 	}
@@ -5380,7 +5380,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 		} else {
 			assert_not_reached ();
 		}
-		
+
 		if (expr.operator == BinaryOperator.EQUALITY ||
 		    expr.operator == BinaryOperator.INEQUALITY) {
 			var left_type = expr.left.target_type;
@@ -5877,7 +5877,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 				var base_class = (Class) prop.base_property.parent_symbol;
 				var vcast = new CCodeFunctionCall (new CCodeIdentifier ("%s_CLASS".printf (get_ccode_upper_case_name (base_class, null))));
 				vcast.add_argument (new CCodeIdentifier ("%s_parent_class".printf (get_ccode_lower_case_name (current_class, null))));
-				
+
 				var ccall = new CCodeFunctionCall (new CCodeMemberAccess.pointer (vcast, "set_%s".printf (prop.name)));
 				ccall.add_argument ((CCodeExpression) get_ccodenode (instance));
 				ccall.add_argument (get_cvalue_ (value));
@@ -5897,7 +5897,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 		}
 
 		var set_func = "g_object_set";
-		
+
 		var base_property = prop;
 		if (!get_ccode_no_accessor_method (prop)) {
 			if (prop.base_property != null) {
@@ -5921,7 +5921,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 				}
 			}
 		}
-		
+
 		var ccall = new CCodeFunctionCall (new CCodeIdentifier (set_func));
 
 		if (prop.binding == MemberBinding.INSTANCE) {
@@ -6040,7 +6040,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 		}
 		return null;
 	}
-	
+
 	private void create_property_type_check_statement (Property prop, bool check_return_type, TypeSymbol t, bool non_null, string var_name) {
 		if (check_return_type) {
 			create_type_check_statement (prop, prop.property_type, t, non_null, var_name);

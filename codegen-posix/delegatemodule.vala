@@ -41,7 +41,7 @@ public class Vala.CodeGen.PosixDelegateModule : Vala.CodeGen.PosixArrayModule {
 
 		if (return_type_cname == get_ccode_name (d)) {
 			// recursive delegate
-			return_type_cname = "GCallback";
+			return_type_cname = "Callback";
 		} else {
 			generate_type_declaration (d.return_type, decl_space);
 		}
@@ -55,12 +55,12 @@ public class Vala.CodeGen.PosixDelegateModule : Vala.CodeGen.PosixArrayModule {
 			// handle array parameters
 			if (get_ccode_array_length (param) && param.variable_type is ArrayType) {
 				var array_type = (ArrayType) param.variable_type;
-				
+
 				var length_ctype = "int";
 				if (param.direction != ParameterDirection.IN) {
 					length_ctype = "int*";
 				}
-				
+
 				for (int dim = 1; dim <= array_type.rank; dim++) {
 					cparam = new CCodeParameter (get_parameter_array_length_cname (param, dim), length_ctype);
 					cfundecl.add_parameter (cparam);
@@ -74,7 +74,7 @@ public class Vala.CodeGen.PosixDelegateModule : Vala.CodeGen.PosixArrayModule {
 					cparam = new CCodeParameter (get_delegate_target_cname (get_variable_cname (param.name)), "void*");
 					cfundecl.add_parameter (cparam);
 					if (deleg_type.value_owned) {
-						cparam = new CCodeParameter (get_delegate_target_destroy_notify_cname (get_variable_cname (param.name)), "GDestroyNotify*");
+						cparam = new CCodeParameter (get_delegate_target_destroy_notify_cname (get_variable_cname (param.name)), "DestroyNotify*");
 						cfundecl.add_parameter (cparam);
 					}
 				}
@@ -98,7 +98,7 @@ public class Vala.CodeGen.PosixDelegateModule : Vala.CodeGen.PosixArrayModule {
 				var cparam = new CCodeParameter (get_delegate_target_cname ("result"), "void**");
 				cfundecl.add_parameter (cparam);
 				if (deleg_type.value_owned) {
-					cparam = new CCodeParameter (get_delegate_target_destroy_notify_cname ("result"), "GDestroyNotify*");
+					cparam = new CCodeParameter (get_delegate_target_destroy_notify_cname ("result"), "DestroyNotify*");
 					cfundecl.add_parameter (cparam);
 				}
 			}

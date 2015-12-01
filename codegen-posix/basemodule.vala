@@ -671,6 +671,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 		cfile.add_type_declaration (new CCodeTypeDefinition ("struct _SignalHandler", new CCodeVariableDeclarator ("SignalHandler")));
 		cfile.add_type_declaration (new CCodeTypeDefinition ("void (*SignalMarshaller)", new CCodeVariableDeclarator ("(void* instance, void *callback, void *user_data, void *result, va_list args)")));
 		cfile.add_type_declaration (new CCodeTypeDefinition ("void (*NotifyCallback)", new CCodeVariableDeclarator ("(void* user_data)")));
+		cfile.add_type_declaration (new CCodeTypeDefinition ("void (*DestroyNotify)", new CCodeVariableDeclarator ("(void* user_data)")));
 
 		// Type structure
 		var type_struct = new CCodeStruct ("_Type");
@@ -881,12 +882,14 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 			ccode.close ();
 
 			pop_function ();
-			cfile.add_function_declaration (function);
 			cfile.add_function (function);
+		}
+		cfile.add_function_declaration (function);
 
-			/* generate object_instance_init */
-			function  = new CCodeFunction ("object_instance_init", "void");
-			function.add_parameter (new CCodeParameter ("instance", "void *"));
+		/* generate object_instance_init */
+		function  = new CCodeFunction ("object_instance_init", "void");
+		function.add_parameter (new CCodeParameter ("instance", "void *"));
+		if (!declaration_only) {
 			push_function (function);
 			ccode.add_expression (new CCodeAssignment (new CCodeMemberAccess.pointer (new CCodeCastExpression(new CCodeIdentifier ("instance"), "Object *"), "ref_count"), new CCodeConstant ("1")));
 			pop_function ();
@@ -1328,7 +1331,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 			if (delegate_type.delegate_symbol.has_target) {
 				// create field to store delegate target
 
-				cdecl = new CCodeDeclaration ("gpointer");
+				cdecl = new CCodeDeclaration ("void*");
 				cdecl.add_declarator (new CCodeVariableDeclarator (get_ccode_delegate_target_name (f)));
 				if (f.is_private_symbol ()) {
 					cdecl.modifiers = CCodeModifiers.STATIC;
@@ -1338,7 +1341,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 				decl_space.add_type_member_declaration (cdecl);
 
 				if (delegate_type.value_owned) {
-					cdecl = new CCodeDeclaration ("GDestroyNotify");
+					cdecl = new CCodeDeclaration ("DestroyNotify");
 					cdecl.add_declarator (new CCodeVariableDeclarator (get_delegate_target_destroy_notify_cname  (get_ccode_name (f))));
 					if (f.is_private_symbol ()) {
 						cdecl.modifiers = CCodeModifiers.STATIC;
@@ -1520,7 +1523,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 					if (delegate_type.delegate_symbol.has_target) {
 						// create field to store delegate target
 
-						var target_def = new CCodeDeclaration ("gpointer");
+						var target_def = new CCodeDeclaration ("void*");
 						target_def.add_declarator (new CCodeVariableDeclarator (get_ccode_delegate_target_name (f), new CCodeConstant ("NULL")));
 						if (!f.is_private_symbol ()) {
 							target_def.modifiers = CCodeModifiers.EXTERN;
@@ -1530,7 +1533,7 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 						cfile.add_type_member_declaration (target_def);
 
 						if (delegate_type.value_owned) {
-							var target_destroy_notify_def = new CCodeDeclaration ("GDestroyNotify");
+							var target_destroy_notify_def = new CCodeDeclaration ("DestroyNotify");
 							target_destroy_notify_def.add_declarator (new CCodeVariableDeclarator (get_delegate_target_destroy_notify_cname (get_ccode_name (f)), new CCodeConstant ("NULL")));
 							if (!f.is_private_symbol ()) {
 								target_destroy_notify_def.modifiers = CCodeModifiers.EXTERN;
@@ -1764,9 +1767,9 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 				function.add_parameter (new CCodeParameter (get_array_length_cname (acc.readable ? "result" : "value", dim), length_ctype));
 			}
 		} else if ((acc.value_type is DelegateType) && ((DelegateType) acc.value_type).delegate_symbol.has_target) {
-			function.add_parameter (new CCodeParameter (get_delegate_target_cname (acc.readable ? "result" : "value"), acc.readable ? "gpointer*" : "gpointer"));
+			function.add_parameter (new CCodeParameter (get_delegate_target_cname (acc.readable ? "result" : "value"), acc.readable ? "void**" : "void*"));
 			if (!acc.readable && acc.value_type.value_owned) {
-				function.add_parameter (new CCodeParameter (get_delegate_target_destroy_notify_cname ("value"), "GDestroyNotify"));
+				function.add_parameter (new CCodeParameter (get_delegate_target_destroy_notify_cname ("value"), "DestroyNotify"));
 			}
 		}
 
@@ -1865,9 +1868,9 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 					function.add_parameter (new CCodeParameter (get_array_length_cname (acc.readable ? "result" : "value", dim), length_ctype));
 				}
 			} else if ((acc.value_type is DelegateType) && ((DelegateType) acc.value_type).delegate_symbol.has_target) {
-				function.add_parameter (new CCodeParameter (get_delegate_target_cname (acc.readable ? "result" : "value"), acc.readable ? "gpointer*" : "gpointer"));
+				function.add_parameter (new CCodeParameter (get_delegate_target_cname (acc.readable ? "result" : "value"), acc.readable ? "void**" : "void*"));
 				if (!acc.readable && acc.value_type.value_owned) {
-					function.add_parameter (new CCodeParameter (get_delegate_target_destroy_notify_cname ("value"), "GDestroyNotify"));
+					function.add_parameter (new CCodeParameter (get_delegate_target_destroy_notify_cname ("value"), "DestroyNotify"));
 				}
 			}
 
@@ -1988,9 +1991,9 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 					function.add_parameter (new CCodeParameter (get_array_length_cname (acc.readable ? "result" : "value", dim), length_ctype));
 				}
 			} else if ((acc.value_type is DelegateType) && ((DelegateType) acc.value_type).delegate_symbol.has_target) {
-				function.add_parameter (new CCodeParameter (get_delegate_target_cname (acc.readable ? "result" : "value"), acc.readable ? "gpointer*" : "gpointer"));
+				function.add_parameter (new CCodeParameter (get_delegate_target_cname (acc.readable ? "result" : "value"), acc.readable ? "void**" : "void*"));
 				if (!acc.readable && acc.value_type.value_owned) {
-					function.add_parameter (new CCodeParameter (get_delegate_target_destroy_notify_cname ("value"), "GDestroyNotify"));
+					function.add_parameter (new CCodeParameter (get_delegate_target_destroy_notify_cname ("value"), "DestroyNotify"));
 				}
 			}
 
@@ -2093,12 +2096,12 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 
 		if (array_type != null && get_ccode_array_length (param)) {
 			for (int dim = 1; dim <= array_type.rank; dim++) {
-				data.add_field ("gint", get_parameter_array_length_cname (param, dim));
+				data.add_field ("int", get_parameter_array_length_cname (param, dim));
 			}
 		} else if (deleg_type != null && deleg_type.delegate_symbol.has_target) {
-			data.add_field ("gpointer", get_ccode_delegate_target_name (param));
+			data.add_field ("void*", get_ccode_delegate_target_name (param));
 			if (param.variable_type.value_owned) {
-				data.add_field ("GDestroyNotify", get_delegate_target_destroy_notify_cname (get_variable_cname (param.name)));
+				data.add_field ("DestroyNotify", get_delegate_target_destroy_notify_cname (get_variable_cname (param.name)));
 				// reference transfer for delegates
 				var lvalue = get_parameter_cvalue (param);
 				((GLibValue) value).delegate_target_destroy_notify_cvalue = get_delegate_target_destroy_notify_cvalue (lvalue);
@@ -2141,13 +2144,13 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 						string func_name;
 
 						func_name = "%s_type".printf (type_param.name.down ());
-						data.add_field ("GType", func_name);
+						data.add_field ("Type", func_name);
 
 						func_name = "%s_dup_func".printf (type_param.name.down ());
-						data.add_field ("GBoxedCopyFunc", func_name);
+						data.add_field ("BoxedCopyFunc", func_name);
 
 						func_name = "%s_destroy_func".printf (type_param.name.down ());
-						data.add_field ("GDestroyNotify", func_name);
+						data.add_field ("DestroyNotify", func_name);
 					}
 				}
 			}
@@ -2160,13 +2163,13 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 					if (local.variable_type is ArrayType) {
 						var array_type = (ArrayType) local.variable_type;
 						for (int dim = 1; dim <= array_type.rank; dim++) {
-							data.add_field ("gint", get_array_length_cname (get_local_cname (local), dim));
+							data.add_field ("int", get_array_length_cname (get_local_cname (local), dim));
 						}
-						data.add_field ("gint", get_array_size_cname (get_local_cname (local)));
+						data.add_field ("int", get_array_size_cname (get_local_cname (local)));
 					} else if (local.variable_type is DelegateType) {
-						data.add_field ("gpointer", get_delegate_target_cname (get_local_cname (local)));
+						data.add_field ("void*", get_delegate_target_cname (get_local_cname (local)));
 						if (local.variable_type.value_owned) {
-							data.add_field ("GDestroyNotify", get_delegate_target_destroy_notify_cname (get_local_cname (local)));
+							data.add_field ("DestroyNotify", get_delegate_target_destroy_notify_cname (get_local_cname (local)));
 						}
 					}
 				}
@@ -2308,15 +2311,15 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 					string func_name;
 
 					func_name = "%s_type".printf (type_param.name.down ());
-					ccode.add_declaration ("GType", new CCodeVariableDeclarator (func_name));
+					ccode.add_declaration ("Type", new CCodeVariableDeclarator (func_name));
 					ccode.add_assignment (new CCodeIdentifier (func_name), new CCodeMemberAccess.pointer (outer_block, func_name));
 
 					func_name = "%s_dup_func".printf (type_param.name.down ());
-					ccode.add_declaration ("GBoxedCopyFunc", new CCodeVariableDeclarator (func_name));
+					ccode.add_declaration ("BoxedCopyFunc", new CCodeVariableDeclarator (func_name));
 					ccode.add_assignment (new CCodeIdentifier (func_name), new CCodeMemberAccess.pointer (outer_block, func_name));
 
 					func_name = "%s_destroy_func".printf (type_param.name.down ());
-					ccode.add_declaration ("GDestroyNotify", new CCodeVariableDeclarator (func_name));
+					ccode.add_declaration ("DestroyNotify", new CCodeVariableDeclarator (func_name));
 					ccode.add_assignment (new CCodeIdentifier (func_name), new CCodeMemberAccess.pointer (outer_block, func_name));
 				}
 			}
@@ -3340,16 +3343,16 @@ public abstract class Vala.CodeGen.PosixBaseModule : Vala.CodeGenerator {
 		if (collection_type.data_type == gnode_type) {
 			/* A wrapper which converts GNodeTraverseFunc into GDestroyNotify */
 			string destroy_node_func = "%s_node".printf (destroy_func);
-			var wrapper = new CCodeFunction (destroy_node_func, "gboolean");
+			var wrapper = new CCodeFunction (destroy_node_func, "bool");
 			wrapper.modifiers = CCodeModifiers.STATIC;
 			wrapper.add_parameter (new CCodeParameter ("node", get_ccode_name (collection_type)));
-			wrapper.add_parameter (new CCodeParameter ("unused", "gpointer"));
+			wrapper.add_parameter (new CCodeParameter ("unused", "void*"));
 			push_function (wrapper);
 
 			var free_call = new CCodeFunctionCall (element_destroy_func_expression);
 			free_call.add_argument (new CCodeMemberAccess.pointer(new CCodeIdentifier("node"), "data"));
 			ccode.add_expression (free_call);
-			ccode.add_return (new CCodeConstant ("FALSE"));
+			ccode.add_return (new CCodeConstant ("false"));
 
 			pop_function ();
 			cfile.add_function_declaration (function);

@@ -50,7 +50,7 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 		if (cl.base_class != null) {
 			instance_struct.add_field (get_ccode_name (cl.base_class), "parent_instance");
 		} else if (is_fundamental) {
-			instance_struct.add_field ("Object", "parent_instance");		
+			instance_struct.add_field ("Object", "parent_instance");
 		}
 
 		if (cl.is_compact && cl.base_class == null && cl.get_fields ().size == 0) {
@@ -91,7 +91,7 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 				generate_virtual_method_declaration (sig.default_handler, decl_space, type_struct);
 			}
 		}
-		
+
 		foreach (Property prop in cl.get_properties ()) {
 			if (!prop.is_abstract && !prop.is_virtual) {
 				continue;
@@ -121,7 +121,7 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 						vdeclarator.add_parameter (new CCodeParameter (get_array_length_cname ("result", dim), "int*"));
 					}
 				} else if ((prop.property_type is DelegateType) && ((DelegateType) prop.property_type).delegate_symbol.has_target) {
-					vdeclarator.add_parameter (new CCodeParameter (get_delegate_target_cname ("result"), "gpointer*"));
+					vdeclarator.add_parameter (new CCodeParameter (get_delegate_target_cname ("result"), "void**"));
 				}
 
 				var vdecl = new CCodeDeclaration (creturn_type);
@@ -146,7 +146,7 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 						vdeclarator.add_parameter (new CCodeParameter (get_array_length_cname ("value", dim), "int"));
 					}
 				} else if ((prop.property_type is DelegateType) && ((DelegateType) prop.property_type).delegate_symbol.has_target) {
-					vdeclarator.add_parameter (new CCodeParameter (get_delegate_target_cname ("value"), "gpointer"));
+					vdeclarator.add_parameter (new CCodeParameter (get_delegate_target_cname ("value"), "void*"));
 				}
 
 				var vdecl = new CCodeDeclaration ("void");
@@ -191,9 +191,9 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 						var delegate_type = (DelegateType) f.variable_type;
 						if (delegate_type.delegate_symbol.has_target) {
 							// create field to store delegate target
-							instance_struct.add_field ("gpointer", get_ccode_delegate_target_name (f));
+							instance_struct.add_field ("void*", get_ccode_delegate_target_name (f));
 							if (delegate_type.value_owned) {
-								instance_struct.add_field ("GDestroyNotify", get_delegate_target_destroy_notify_cname (f.name));
+								instance_struct.add_field ("DestroyNotify", get_delegate_target_destroy_notify_cname (f.name));
 							}
 						}
 					}
@@ -202,7 +202,7 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 				}
 			}
 		}
-		
+
 		/* Add to source */
 		if (!cl.is_compact || cl.base_class == null) {
 			// derived compact classes do not have a struct
@@ -212,16 +212,16 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 		if (is_gtypeinstance) {
 			decl_space.add_type_definition (type_struct);
 		}
-		
+
 		decl_space.add_type_declaration (new CCodeTypeDefinition ("struct _%sClass".printf (get_ccode_name (cl)), new CCodeVariableDeclarator ("%sClass".printf (get_ccode_name (cl)))));
 		decl_space.add_type_declaration (new CCodeTypeDefinition ("struct _%s".printf (get_ccode_name (cl)), new CCodeVariableDeclarator ("%s".printf (get_ccode_name (cl)))));
 		decl_space.add_type_member_declaration (new CCodeMacroReplacement ("%s_GET_TYPE(o)".printf (get_ccode_upper_case_name (cl, null)), "((%sClass *) ((Object *)o)->type)".printf (get_ccode_name (cl))));
 	}
-	
+
 	public override void visit_class (Class cl) {
 		push_context (new EmitContext (cl));
 		push_line (cl.source_reference);
-		
+
 		var old_param_spec_struct = param_spec_struct;
 		var old_prop_enum = prop_enum;
 		var old_class_init_context = class_init_context;
@@ -231,7 +231,7 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 		var old_instance_init_context = instance_init_context;
 		var old_instance_finalize_context = instance_finalize_context;
 		var old_get_interface_context = get_interface_context;
-		
+
 		if (get_ccode_name (cl).length < 3) {
 			cl.error = true;
 			Report.error (cl.source_reference, "Class name `%s' is too short".printf (get_ccode_name (cl)));
@@ -254,7 +254,7 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 			}
 		}
 		cfile.add_include ("stdlib.h");
-	
+
 		//prop_enum = new CCodeEnum ();
 		//prop_enum.add_value (new CCodeEnumValue ("%s_DUMMY_PROPERTY".printf (get_ccode_upper_case_name (cl, null))));
 		class_init_context = new EmitContext (cl);
@@ -274,8 +274,8 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 		if (!cl.is_private_symbol ()) {
 			generate_class_struct_declaration (cl, internal_header_file);
 		}
-		
-		
+
+
 		begin_base_init_function (cl);
 		begin_class_init_function (cl);
 		begin_instance_init_function (cl);
@@ -325,18 +325,18 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 		/* Type declaration & initialization */
 		var type_var_decl = new CCodeVariableDeclarator ("%s_type".printf(get_ccode_lower_case_name(cl)));
 		type_var_decl.initializer = new CCodeConstant("NULL"); // new CCodeFunctionCall (new CCodeIdentifier ("%s_type_init".printf(get_ccode_lower_case_name(cl))));
-		
+
 		var type_decl = new CCodeDeclaration ("%sClass *".printf (get_ccode_name (cl)));
 		type_decl.add_declarator (type_var_decl);
-		
+
 		if (cl.access == SymbolAccessibility.PRIVATE) {
 			type_decl.modifiers = CCodeModifiers.STATIC;
 		} else {
 			type_decl.modifiers = CCodeModifiers.EXTERN;
 		}
 		cfile.add_type_declaration (type_decl);
-		
-		
+
+
 		if (is_fundamental) {
 			//var ref_count = new CCodeMemberAccess.pointer (new CCodeIdentifier ("self"), "ref_count");
 
@@ -374,7 +374,7 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 			ccall.add_argument (new CCodeIdentifier ("self"));
 			ccode.add_expression (ccall);
 			pop_function ();
-			
+
 			/*
 			//ccode.add_declaration (get_ccode_name (cl) + "*", new CCodeVariableDeclarator ("self", new CCodeIdentifier ("instance")));
 			ccall = new CCodeFunctionCall (new CCodeIdentifier ("os_atomic_int_dec_and_test"));
@@ -400,12 +400,12 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 			ccode.close ();
 			pop_function ();
 			*/
-			
+
 			cfile.add_function (unref_fun);
-			
+
 		}
-		
-		
+
+
 		if (cl.is_compact && cl.base_class == null) {
 			// derived compact classes do not have fields
 			add_instance_init_function (cl);
@@ -425,7 +425,7 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 		pop_line ();
 		pop_context ();
 	}
-	
+
 	public virtual void generate_virtual_method_declaration (Method m, CCodeFile decl_space, CCodeStruct type_struct) {
 		if (!m.is_abstract && !m.is_virtual) {
 			return;
@@ -447,7 +447,7 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 		vdecl.add_declarator (vdeclarator);
 		type_struct.add_declaration (vdecl);
 	}
-	
+
 	void generate_class_private_declaration (Class cl, CCodeFile decl_space) {
 		if (decl_space.add_declaration (get_ccode_name (cl) + "Private")) {
 			return;
@@ -493,9 +493,9 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 						var delegate_type = (DelegateType) f.variable_type;
 						if (delegate_type.delegate_symbol.has_target) {
 							// create field to store delegate target
-							instance_priv_struct.add_field ("gpointer", get_ccode_delegate_target_name (f));
+							instance_priv_struct.add_field ("void*", get_ccode_delegate_target_name (f));
 							if (delegate_type.value_owned) {
-								instance_priv_struct.add_field ("GDestroyNotify", get_delegate_target_destroy_notify_cname (f.name));
+								instance_priv_struct.add_field ("DestroyNotify", get_delegate_target_destroy_notify_cname (f.name));
 							}
 						}
 					}
@@ -518,8 +518,8 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 				}
 			}
 		}
-		
-		
+
+
 		foreach (Property prop in cl.get_properties ()) {
 			if (prop.binding == MemberBinding.INSTANCE) {
 				if (prop.get_lock_used ()) {
@@ -566,13 +566,15 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 			}
 			decl_space.add_type_member_declaration (new CCodeMacroReplacement ("%s_GET_CLASS_PRIVATE(klass)".printf (get_ccode_upper_case_name (cl, null)), macro));
 		}
-		
+
 		decl_space.add_type_member_declaration (prop_enum);
 		*/
 	}
-	
+
 	private void begin_base_init_function (Class cl) {
 		push_context (base_init_context);
+
+		header_file.add_include ("stddef.h");
 
 		var base_init = new CCodeFunction ("%s_base_init".printf (get_ccode_lower_case_name (cl, null)), "void");
 		base_init.add_parameter (new CCodeParameter ("klass", "%sClass *".printf (get_ccode_name (cl))));
@@ -630,7 +632,7 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 	}
 
 	public virtual void generate_class_init (Class cl) {
-	
+
 	}
 
 	private void begin_class_init_function (Class cl) {
@@ -641,8 +643,8 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 		//func.modifiers = CCodeModifiers.STATIC;
 
 		CCodeFunctionCall ccall;
-		
-		/* save pointer to parent class 
+
+		/* save pointer to parent class
 		var parent_decl = new CCodeDeclaration ("void *");
 		var parent_var_decl = new CCodeVariableDeclarator ("%s_parent_class".printf (get_ccode_lower_case_name (cl, null)));
 		parent_var_decl.initializer = new CCodeConstant ("NULL");
@@ -650,7 +652,7 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 		parent_decl.modifiers = CCodeModifiers.STATIC;
 		cfile.add_type_member_declaration (parent_decl);
 		*/
-		
+
 		push_function (func);
 
 		if (trace_method_call) {
@@ -686,22 +688,22 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 		ccall.add_argument (new CCodeConstant("1"));
 		ccall.add_argument (new CCodeIdentifier ("sizeof (%sClass)".printf (get_ccode_name (cl))));
 		type_init.add_statement (new CCodeExpressionStatement (new CCodeAssignment (new CCodeIdentifier(var_type_name), new CCodeCastExpression (ccall, "%sClass *".printf(get_ccode_name (cl))))));
-		
+
 		string base_type_name;
 		if (cl.base_class == null) {
-			var parent_assignment = new CCodeAssignment (new CCodeMemberAccess.pointer (new CCodeIdentifier (var_type_name), "parent_class"), 
+			var parent_assignment = new CCodeAssignment (new CCodeMemberAccess.pointer (new CCodeIdentifier (var_type_name), "parent_class"),
 				new CCodeUnaryExpression(CCodeUnaryOperator.POINTER_INDIRECTION, new CCodeIdentifier("object_type")));
 			type_init.add_statement (new CCodeExpressionStatement (parent_assignment));
 			base_type_name = "object_type";
 		} else {
-			var parent_assignment = new CCodeAssignment (new CCodeMemberAccess.pointer (new CCodeIdentifier (var_type_name), "parent_class"), 
+			var parent_assignment = new CCodeAssignment (new CCodeMemberAccess.pointer (new CCodeIdentifier (var_type_name), "parent_class"),
 				new CCodeUnaryExpression(CCodeUnaryOperator.POINTER_INDIRECTION, new CCodeIdentifier("%s_type".printf(get_ccode_lower_case_name (cl.base_class, null)))));
 			type_init.add_statement (new CCodeExpressionStatement (parent_assignment));
 			base_type_name = "%s_type".printf (get_ccode_lower_case_name (cl.base_class));
 		}
 
 		CCodeAssignment base_type_assignment = new CCodeAssignment (
-			new CCodeMemberAccess.pointer (new CCodeCastExpression(new CCodeIdentifier (var_type_name), "Type *"), "base_type"), 
+			new CCodeMemberAccess.pointer (new CCodeCastExpression(new CCodeIdentifier (var_type_name), "Type *"), "base_type"),
 			new CCodeCastExpression (new CCodeIdentifier (base_type_name), "Type *"));
 		type_init.add_statement (new CCodeExpressionStatement (base_type_assignment));
 
@@ -732,13 +734,13 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 
 				ccall = new CCodeFunctionCall (new CCodeIdentifier ("%s_base_init".printf (get_ccode_lower_case_name (iface, null))));
 				type_init.add_statement (new CCodeExpressionStatement (ccall));
-				var assignment = new CCodeAssignment (new CCodeMemberAccess.pointer (new CCodeIdentifier (var_type_name), get_ccode_lower_case_name (iface, null)), 
+				var assignment = new CCodeAssignment (new CCodeMemberAccess.pointer (new CCodeIdentifier (var_type_name), get_ccode_lower_case_name (iface, null)),
 					new CCodeUnaryExpression(CCodeUnaryOperator.POINTER_INDIRECTION, new CCodeIdentifier("%s_type".printf(get_ccode_lower_case_name (iface, null)))));
 				type_init.add_statement (new CCodeExpressionStatement (assignment));
 			}
 		}
 
-		/* add struct for private fields 
+		/* add struct for private fields
 		if (cl.has_private_fields || cl.get_type_parameters ().size > 0) {
 			ccall = new CCodeFunctionCall (new CCodeIdentifier ("g_type_class_add_private"));
 			ccall.add_argument (new CCodeIdentifier (var_type_name));
@@ -797,7 +799,7 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 				continue;
 			}
 			var base_type = prop.base_property.parent_symbol;
-			
+
 			var ccast = new CCodeFunctionCall (new CCodeIdentifier ("%s_type".printf (get_ccode_name (base_type))));
 			ccast.add_argument (new CCodeIdentifier (var_type_name));
 
@@ -837,7 +839,7 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 		cfile.add_function_declaration (class_init_context.ccode);
 		cfile.add_function (class_init_context.ccode);
 	}
-	
+
 	private void begin_instance_init_function (Class cl) {
 		push_context (instance_init_context);
 
@@ -1018,7 +1020,7 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 
 			// chain up to finalize function of the base class
 			string base_name;
-			
+
 			if (cl.base_class == null) {
 				base_name = "object";
 			} else {
@@ -1029,7 +1031,7 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 			ccall.add_argument (new CCodeIdentifier ("self"));
 			push_context (instance_finalize_context);
 			ccode.add_expression (ccall);
-			
+
 			if (cl.has_private_fields) {
 				// free private struct
 				var free = new CCodeFunctionCall (new CCodeIdentifier ("free"));
@@ -1078,10 +1080,10 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 				} else {
 					function.else_if (new CCodeBinaryExpression(CCodeBinaryOperator.EQUALITY, new CCodeIdentifier("interface_type"), new CCodeIdentifier("%s_type".printf (interface_name))));
 				}
-				function.add_assignment (new CCodeIdentifier("interface"), 
+				function.add_assignment (new CCodeIdentifier("interface"),
 					new CCodeUnaryExpression(CCodeUnaryOperator.ADDRESS_OF, new CCodeMemberAccess.pointer(
 						new CCodeCastExpression(new CCodeParenthesizedExpression(
-							new CCodeMemberAccess.pointer(new CCodeCastExpression(new CCodeIdentifier("self"), "Object *"), "type")), "%sClass *".printf (get_ccode_name (cl))), 
+							new CCodeMemberAccess.pointer(new CCodeCastExpression(new CCodeIdentifier("self"), "Object *"), "type")), "%sClass *".printf (get_ccode_name (cl))),
 						interface_name)));
 				if (first)
 					first = false;
@@ -1324,6 +1326,7 @@ public class Vala.CodeGen.PosixClassModule : Vala.CodeGen.PosixDelegateModule {
 		pop_function ();
 		pop_context ();
 		cfile.add_function_declaration (base_init);
+		header_file.add_function_declaration (base_init);
 		cfile.add_function (base_init);
 	}
 }
